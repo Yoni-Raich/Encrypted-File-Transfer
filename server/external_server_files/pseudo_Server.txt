@@ -1,0 +1,5 @@
+Start():
+    while True:
+        request = get_user_request()
+        response = handleRequest(request)
+        send_to_user(response)

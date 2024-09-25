@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server-side UML Diagram</title>
+</head>
+<body>
+    <h1>Server-side UML Diagram</h1>
+    <pre class="plantuml">
+@startuml
+
+skinparam class {
+    BackgroundColor LightBlue
+    ArrowColor Black
+    BorderColor DarkBlue
+}
+
+package "Server-side" {
+    class Server {
+        - port: int
+        - database: Database
+        + start(): void
+        + stop(): void
+        + handle_request(request: Request): Response
+    }
+
+    class Database {
+        - connection: Connection
+        + connect(): void
+        + disconnect(): void
+        + query(sql: String): Result
+        + insert(table: String, data: Map): void
+        + update(table: String, data: Map, condition: String): void
+        + delete(table: String, condition: String): void
+    }
+
+    class Request {
+        - method: String
+        - path: String
+        - headers: Map<String, String>
+        - body: String
+        + get_method(): String
+        + get_path(): String
+        + get_header(name: String): String
+        + get_body(): String
+    }
+
+    class Response {
+        - status_code: int
+        - headers: Map<String, String>
+        - body: String
+        + set_status_code(code: int): void
+        + set_header(name: String, value: String): void
+        + set_body(body: String): void
+        + to_string(): String
+    }
+
+    class AuthenticationService {
+        - user_repository: UserRepository
+        + authenticate(username: String, password: String): bool
+        + generate_token(user: User): String
+        + validate_token(token: String): bool
+        + hash_password(password: String): String
+    }
+
+    class User {
+        - id: int
+        - username: String
+        - email: String
+        - password_hash: String
+        + get_id(): int
+        + get_username(): String
+        + get_email(): String
+        + set_password(password: String): void
+        + check_password(password: String): bool
+    }
+
+    class UserRepository {
+        - database: Database
+        + find_by_id(id: int): User
+        + find_by_username(username: String): User
+        + save(user: User): void
+        + delete(user: User): void
+    }
+
+    class MessageRepository {
+        - database: Database
+        + find_by_id(id: int): Message
+        + find_by_user(user: User): List<Message>
+        + save(message: Message): void
+        + delete(message: Message): void
+    }
+
+    class Message {
+        - id: int
+        - sender: User
+        - content: String
+        - timestamp: DateTime
+        + get_id(): int
+        + get_sender(): User
+        + get_content(): String
+        + get_timestamp(): DateTime
+    }
+
+    Server "1" --> "1" Database : uses
+    Server "1" --> "*" Request : processes
+    Server "1" --> "*" Response : generates
+    Server "1" --> "1" AuthenticationService : uses
+    AuthenticationService "1" --> "1" UserRepository : uses
+    UserRepository "1" --> "1" Database : uses
+    MessageRepository "1" --> "1" Database : uses
+    UserRepository "1" --> "*" User : manages
+    MessageRepository "1" --> "*" Message : manages
+    Message "*" --> "1" User : sent by
+}
+
+@enduml
+    </pre>
+</body>
+</html>

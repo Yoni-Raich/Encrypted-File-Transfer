@@ -40,4 +40,3 @@ bld/
 # Local History for Visual Studio Code
 .history/
 client/EncryptedFileTransferClinet/packages/
-server/__pycache__/
