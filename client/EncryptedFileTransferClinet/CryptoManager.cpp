@@ -7,14 +7,15 @@
 #include <cryptopp/filters.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/crc.h>
+#include "CryptoManager.h"
 
 using namespace CryptoPP;
 
-class CryptoManager {
-public:
-    CryptoManager() : aesKey(AES::DEFAULT_KEYLENGTH) {}
 
-    void generateRSAKeys() 
+
+CryptoManager::CryptoManager() : aesKey(AES::DEFAULT_KEYLENGTH) {}
+
+void CryptoManager::generateRSAKeys()
     {
         AutoSeededRandomPool rng;
         InvertibleRSAFunction params;
@@ -24,19 +25,19 @@ public:
         publicKey = RSA::PublicKey(params);
     }
 
-    std::string getEncryptedAESKey() 
+    std::string CryptoManager::getEncryptedAESKey()
     {
         return encryptRSA(aesKey);
     }
 
     //TODO need to remove this function
-    void generateAESKey() 
+    void CryptoManager::generateAESKey()
     {
         AutoSeededRandomPool rng;
         rng.GenerateBlock(aesKey, aesKey.size());
     }
 
-    std::string encryptAES(const std::string& data) {
+    std::string CryptoManager::encryptAES(const std::string& data) {
         AutoSeededRandomPool rng;
         byte iv[AES::BLOCKSIZE];
         rng.GenerateBlock(iv, sizeof(iv));
@@ -54,7 +55,7 @@ public:
         return std::string(reinterpret_cast<char*>(iv), AES::BLOCKSIZE) + ciphertext;
     }
 
-    std::string decryptAES(const std::string& data) {
+    std::string CryptoManager::decryptAES(const std::string& data) {
         byte iv[AES::BLOCKSIZE];
         memcpy(iv, data.data(), AES::BLOCKSIZE);
 
@@ -73,7 +74,7 @@ public:
         return plaintext;
     }
 
-    std::string encryptRSA(const SecByteBlock& data) {
+    std::string CryptoManager::encryptRSA(const SecByteBlock& data) {
         AutoSeededRandomPool rng;
         std::string ciphertext;
 
@@ -87,7 +88,7 @@ public:
         return ciphertext;
     }
 
-    std::string decryptRSA(const std::string& encryptedData) {
+    std::string CryptoManager::decryptRSA(const std::string& encryptedData) {
         AutoSeededRandomPool rng;
         std::string decryptedData;
 
@@ -101,7 +102,7 @@ public:
         return decryptedData;
     }
 
-    std::string getCRC(const std::string& data, bool decrypt = false) {
+    /*std::string CryptoManager::getCRC(const std::string& data, bool decrypt = false) {
         std::string processedData = data;
         if (decrypt) {
             processedData = decryptAES(data);
@@ -118,29 +119,27 @@ public:
         );
 
         return hash;
-    }
+    }*/
     // get the keys
-    RSA::PrivateKey getPrivateKey() {
+    RSA::PrivateKey CryptoManager::getPrivateKey() {
 		return privateKey;
 	}
 
-    RSA::PublicKey getPublicKey() {
-		return publicKey;
+    std::string CryptoManager::getPublicKey() {
+        std::string publicKeyStr;
+        publicKey.Save(StringSink(publicKeyStr).Ref());
+        return publicKeyStr;
 	}
 
-    SecByteBlock getAESKey() {
+    SecByteBlock CryptoManager::getAESKey() {
 		return aesKey;
 	}
 
-    void setAESKey(const SecByteBlock& key) {
-		aesKey = key;
-	}
+    /*void setAESKey(const SecByteBlock& key) {
+        CryptoManager::aesKey = key;
+	}*/
 
-private:
-    RSA::PrivateKey privateKey;
-    RSA::PublicKey publicKey;
-    SecByteBlock aesKey;
-};
+
 
 //int main() {
 //    CryptoManager cryptoManager;
