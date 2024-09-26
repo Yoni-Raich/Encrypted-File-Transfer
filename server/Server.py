@@ -3,6 +3,16 @@ import threading
 from Protocol import Protocol
 from RequestHandler import RequestHandler
 
+
+def receive_full_message(client_socket, buffer_size=1024):
+    data = b''
+    while True:
+        part = client_socket.recv(buffer_size)
+        data += part
+        if len(part) < buffer_size:
+            break
+    return data
+
 class Server:
     def __init__(self, host='localhost', port=1234):
         self.host = host
@@ -23,12 +33,13 @@ class Server:
     def handle_client(self, client_socket):
         while True:
             try:
-                data = client_socket.recv(1024)
+                data = receive_full_message(client_socket)
+                print(data)
                 if not data:
                     break
 
                 client_id, version, code, payload = self.protocol.parse_request(data)
-
+                #print(f"client_id: {client_id}, version: {version}, code: {code}, \npayload: {payload}\n")
                 if code == 825:  # Register request
                     response = self.requestHandler.handle_register(client_id, payload)
                 elif code == 826:  # Send public key
@@ -49,7 +60,9 @@ class Server:
                 break
 
         client_socket.close()
-
+    
+    
+    
 if __name__ == "__main__":
     server = Server()
     server.start()

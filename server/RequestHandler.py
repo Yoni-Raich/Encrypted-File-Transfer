@@ -8,9 +8,11 @@ class RequestHandler:
 
     def handle_register(self, client_id, payload):
         name = payload.decode('utf-8').strip('\x00')
-        if self.protocol.client_manager.add_client(client_id, name):
+        try:
+            client_id = self.protocol.client_manager.add_client(name)
             return self.protocol.create_response(1600, client_id)
-        else:
+        except Exception as e:
+            print(f"Error registering client: {e}")
             return self.protocol.create_response(1601)
 
     def handle_public_key(self, client_id, payload):

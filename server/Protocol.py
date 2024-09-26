@@ -13,14 +13,14 @@ class Protocol:
         self.client_manager = ClientManager()
 
     def parse_request(self, data):
-        header = data[:23]
-        client_id, version, code, payload_size = struct.unpack('!16sBHI', header)
-        payload = data[23:]
+        header = data[:24]
+        client_id, version, code, payload_size = struct.unpack('16s B H I', header)
+        payload = data[24:]
         return client_id, version, code, payload
 
     def create_response(self, code, client_id=None, *args):
         if code == 1600:  # Register success
-            return struct.pack('!BHI16s', 1, code, 16, client_id)
+            return struct.pack('!BHI16s', 1, code, 16, client_id) #TODO use VERSION  instead just 1
         elif code == 1601:  # Register fail
             return struct.pack('!BHI', 1, code, 0)
         elif code == 1602:  # AES key sent

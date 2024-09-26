@@ -62,5 +62,5 @@ if __name__ == "__main__":
     crypto_manager.generate_rsa_keys()
     crypto_manager.generate_aes_key()
     enc_aes_key = crypto_manager.get_encrypted_aes_key()
-    print(crypto_manager.aes_key)
+    print(crypto_manager.public_key)
     

@@ -4,13 +4,13 @@ class ClientManager:
     def __init__(self):
         self.clients = {}
 
-    def add_client(self, client_id, name):
-        client_id = str(uuid.uuid4())
+    def add_client(self, name):
+        client_id = uuid.uuid4()
         if client_id not in self.clients:
             self.clients[client_id] = {'name': name}
         else:
-            raise     
-        return client_id
+            raise ValueError("Client ID already exists")
+        return client_id.bytes
 
     def get_client(self, client_id):
         return self.clients.get(client_id)
@@ -36,5 +36,4 @@ if __name__ == "__main__":
     client_id = client.add_client(0, 'test')
    
     print(client.clients)
-   
 
