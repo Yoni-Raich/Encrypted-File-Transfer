@@ -13,7 +13,10 @@ int main(int argc, char* argv[]) {
         NetworkManager network_manager(server_ip, server_port);
         CryptoManager crypto_manager;
         network_manager.connect();
-        network_manager.sendData(crypto_manager.getPublicKey());
+        crypto_manager.generateRSAKeys();
+        std::string public_key = crypto_manager.getPublicKey();
+        std::cout << "Public key: " << public_key << std::endl;
+        network_manager.sendData(public_key);
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

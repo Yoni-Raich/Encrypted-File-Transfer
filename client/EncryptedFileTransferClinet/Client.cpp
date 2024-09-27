@@ -2,7 +2,7 @@
 //#include <iostream>
 //#include <string> // Added for std::to_string
 //
-//Client::Client(const std::string& server_ip, int server_port)
+//Client::Client(const std::string server_ip, std::string server_port)
 //    : m_server_ip(server_ip), m_server_port(server_port),
 //    m_network_manager(server_ip, server_port) {
 //}

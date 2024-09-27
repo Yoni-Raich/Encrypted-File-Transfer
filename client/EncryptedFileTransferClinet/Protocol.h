@@ -5,34 +5,31 @@
 #include <cstdint>
 #include <tuple>
 
-enum RequestCode {
-    REGISTER = 1100,
-    LOGIN = 1101,
-    KEY_EXCHANGE = 1102,
-    FILE_SEND = 1103,
-    FILE_RECEIVE = 1104,
-    CRC_VALID = 1105,
-    CRC_INVALID = 1106,
-    CRC_FAILED = 1107
-};
-
 class Protocol {
 public:
     Protocol();
     ~Protocol();
 
-    std::vector<uint8_t> createRequest(const std::string& client_id, RequestCode code, const std::vector<uint8_t>& payload);
-    void parseResponse(const std::vector<uint8_t>& response,
-        std::string& client_id,
-        uint8_t& version,
-        RequestCode& code,
-        std::vector<uint8_t>& payload);
+    // Parse incoming request
+    std::tuple<std::string, uint8_t, uint16_t, std::vector<uint8_t>> parseRequest(const std::vector<uint8_t>& data);
 
-    static std::vector<uint8_t> createResponse(uint16_t code, const std::string& client_id, const std::vector<uint8_t>& additional_data);
+    // Create general request
+    std::vector<uint8_t> createRequest(uint16_t code, const std::string& client_id, const std::vector<uint8_t>& payload);
 
-    static std::tuple<std::string, uint8_t, uint16_t, std::vector<uint8_t>> parseRequest(const std::vector<uint8_t>& data);
+    // Create response
+    std::vector<uint8_t> createResponse(uint16_t code, const std::string& client_id, const std::vector<uint8_t>& additional_data);
+
+    // Generate client ID
+    std::string generateClientId();
+
+    // Helper functions for specific message types
+    std::vector<uint8_t> createRegisterRequest(const std::string& client_id, const std::string& name);
+    std::vector<uint8_t> createPublicKeyRequest(const std::string& client_id, const std::vector<uint8_t>& public_key);
+    std::vector<uint8_t> createFileRequest(const std::string& client_id, const std::string& filename);
+    std::vector<uint8_t> createValidCrcRequest(const std::string& client_id, const std::string& filename);
+    std::vector<uint8_t> createInvalidCrcRequest(const std::string& client_id, const std::string& filename);
+    std::vector<uint8_t> createFourthAesKeyRequest(const std::string& client_id);
 
 private:
-    static const uint8_t VERSION = 1;
-    static const size_t HEADER_SIZE = 24;
+    // You can add private members here if needed
 };

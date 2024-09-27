@@ -2,6 +2,7 @@ import socket
 import threading
 from Protocol import Protocol
 from RequestHandler import RequestHandler
+from CryptoManager import CryptoManager
 
 
 def receive_full_message(client_socket, buffer_size=1024):
@@ -35,6 +36,9 @@ class Server:
             try:
                 data = receive_full_message(client_socket)
                 print(data)
+                crypto_m = CryptoManager(data)
+                print(crypto_m.public_key)
+                
                 if not data:
                     break
 

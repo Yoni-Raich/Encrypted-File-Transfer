@@ -1,3 +1,4 @@
+import base64
 import os
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
@@ -6,8 +7,15 @@ from cksum import memcrc as get_CRC
 class CryptoManager:
     def __init__(self, public_key=None):
         self.private_key = None
-        self.public_key = public_key
+        self.public_key = None
         self.aes_key = None
+
+        if public_key:
+            try:
+                public_key_bytes = base64.b64decode(public_key)
+                self.public_key = RSA.import_key(public_key_bytes)
+            except (ValueError, TypeError) as e:
+                print(f"Invalid public key format: {e}")
     
     def get_encrypted_aes_key(self, public_key = None):
         if public_key:
@@ -63,4 +71,3 @@ if __name__ == "__main__":
     crypto_manager.generate_aes_key()
     enc_aes_key = crypto_manager.get_encrypted_aes_key()
     print(crypto_manager.public_key)
-    

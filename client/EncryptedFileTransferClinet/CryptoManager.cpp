@@ -7,6 +7,7 @@
 #include <cryptopp/filters.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/crc.h>
+#include <cryptopp/base64.h>
 #include "CryptoManager.h"
 
 using namespace CryptoPP;
@@ -16,14 +17,14 @@ using namespace CryptoPP;
 CryptoManager::CryptoManager() : aesKey(AES::DEFAULT_KEYLENGTH) {}
 
 void CryptoManager::generateRSAKeys()
-    {
+{
         AutoSeededRandomPool rng;
         InvertibleRSAFunction params;
         params.GenerateRandomWithKeySize(rng, 1024);
 
         privateKey = RSA::PrivateKey(params);
         publicKey = RSA::PublicKey(params);
-    }
+}
 
     std::string CryptoManager::getEncryptedAESKey()
     {
@@ -126,10 +127,14 @@ void CryptoManager::generateRSAKeys()
 	}
 
     std::string CryptoManager::getPublicKey() {
+        ByteQueue queue;
+        publicKey.DEREncodePublicKey(queue);
         std::string publicKeyStr;
-        publicKey.Save(StringSink(publicKeyStr).Ref());
+        CryptoPP::Base64Encoder encoder(new CryptoPP::StringSink(publicKeyStr), false);
+        queue.CopyTo(encoder);
+        encoder.MessageEnd();
         return publicKeyStr;
-	}
+    }
 
     SecByteBlock CryptoManager::getAESKey() {
 		return aesKey;
