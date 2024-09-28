@@ -12,7 +12,7 @@ public:
     void connect();
     void disconnect();
     void sendData(const std::string data);
-    std::vector<uint8_t> receiveData();
+    std::string receiveData();
 
 private:
     boost::asio::io_context m_io_context;

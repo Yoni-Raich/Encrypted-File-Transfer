@@ -41,8 +41,7 @@ class CryptoManager:
         return plaintext
 
     def encrypt_rsa(self, data):
-        recipient_key = RSA.import_key(self.public_key)
-        cipher_rsa = PKCS1_OAEP.new(recipient_key)
+        cipher_rsa = PKCS1_OAEP.new(self.public_key)
         encrypted_data = cipher_rsa.encrypt(data)
         return encrypted_data
 
@@ -70,4 +69,4 @@ if __name__ == "__main__":
     crypto_manager.generate_rsa_keys()
     crypto_manager.generate_aes_key()
     enc_aes_key = crypto_manager.get_encrypted_aes_key()
-    print(crypto_manager.public_key)
+    print(enc_aes_key)
