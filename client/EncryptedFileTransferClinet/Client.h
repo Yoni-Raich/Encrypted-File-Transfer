@@ -1,29 +1,28 @@
 #pragma once
 
-#include <string>
 #include "Protocol.h"
-#include "CryptoManager.h"
-#include "FileHandler.h"
 #include "NetworkManager.h"
+#include "CryptoManager.h"
+#include <string>
+#include <vector>
 
 class Client {
 public:
-    Client(const std::string server_ip, std::string server_port);
+    Client(const std::string& server_ip, const std::string& server_port);
     ~Client();
 
     void run();
 
 private:
-    std::string m_server_ip;
-    std::string m_server_port;
-    Protocol m_protocol;
-    CryptoManager m_crypto_manager;
-    FileHandler m_file_handler;
-    NetworkManager m_network_manager;
     std::string m_client_id;
+    std::string m_name;
+    Protocol m_protocol;
+    NetworkManager m_network_manager;
+    CryptoManager m_crypto_manager;
 
-    bool registerToServer();
-    bool performKeyExchange();
-    void handleUserInput();
-    void processServerResponse();
+    bool register_to_server();
+    //bool perform_key_exchange();
+    void handle_server_response();
+    //void send_file(const std::string& filename);
+    //void handle_crc_response(uint16_t code, const std::vector<uint8_t>& payload);
 };
