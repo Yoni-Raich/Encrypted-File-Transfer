@@ -12,9 +12,8 @@
 
 using namespace CryptoPP;
 
-
-
-CryptoManager::CryptoManager() : aesKey(AES::DEFAULT_KEYLENGTH) {}
+// Constructor
+CryptoManager::CryptoManager() : aesKey(AES_KEY_SIZE) {} // Changed to 32 bytes
 
 void CryptoManager::generateRSAKeys()
 {
@@ -26,15 +25,16 @@ void CryptoManager::generateRSAKeys()
         publicKey = RSA::PublicKey(params);
 }
 
-    std::string CryptoManager::getEncryptedAESKey()
-    {
-        return encryptRSA(aesKey);
-    }
+    //std::string CryptoManager::getEncryptedAESKey()
+    //{
+    //    return encryptRSA(aesKey);
+    //}
 
     //TODO need to remove this function
     void CryptoManager::generateAESKey()
     {
         AutoSeededRandomPool rng;
+        aesKey.resize(AES_KEY_SIZE); // Ensure the key is 32 bytes
         rng.GenerateBlock(aesKey, aesKey.size());
     }
 
@@ -45,7 +45,7 @@ void CryptoManager::generateRSAKeys()
 
         std::string ciphertext;
         CBC_Mode<AES>::Encryption encryption;
-        encryption.SetKeyWithIV(aesKey, aesKey.size(), iv);
+        encryption.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
 
         StringSource ss(data, true,
             new StreamTransformationFilter(encryption,
@@ -64,7 +64,7 @@ void CryptoManager::generateRSAKeys()
         std::string plaintext;
 
         CBC_Mode<AES>::Decryption decryption;
-        decryption.SetKeyWithIV(aesKey, aesKey.size(), iv);
+        decryption.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
 
         StringSource ss(ciphertext, true,
             new StreamTransformationFilter(decryption,
@@ -75,7 +75,9 @@ void CryptoManager::generateRSAKeys()
         return plaintext;
     }
 
-    std::string CryptoManager::encryptRSA(const SecByteBlock& data) {
+    std::string CryptoManager::encryptRSA(const std::string plainText)
+    {
+        SecByteBlock data(reinterpret_cast<const byte*>(plainText.data()), plainText.size());
         AutoSeededRandomPool rng;
         std::string ciphertext;
 
@@ -139,6 +141,16 @@ void CryptoManager::generateRSAKeys()
     SecByteBlock CryptoManager::getAESKey() {
 		return aesKey;
 	}
+
+    void CryptoManager::setAESKey(const std::string& keyString) 
+    {
+        SecByteBlock data(reinterpret_cast<const byte*>(keyString.data()), keyString.size());
+        if (keyString.length() != AES_KEY_SIZE) {
+            throw std::invalid_argument("Invalid AES key length");
+        }
+
+        aesKey = data;
+    }
 
     /*void setAESKey(const SecByteBlock& key) {
         CryptoManager::aesKey = key;

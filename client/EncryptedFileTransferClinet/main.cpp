@@ -15,8 +15,12 @@ int main(int argc, char* argv[]) {
         network_manager.connect();
         crypto_manager.generateRSAKeys();
         std::string public_key = crypto_manager.getPublicKey();
-        std::cout << "Public key: " << public_key << std::endl;
         network_manager.sendData(public_key);
+        std::string new_data = crypto_manager.decryptRSA(network_manager.receiveData());
+        crypto_manager.setAESKey(new_data);
+        new_data = crypto_manager.encryptAES("Hello World");
+        data = crypto_manager.decryptAES(new_data);
+        std::cout << data << std::endl;
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

@@ -28,9 +28,16 @@ void NetworkManager::sendData(const std::string data)
 }
 
 
-std::string NetworkManager::receiveData() 
-{
-    char received_data[MAX_LENGTH];
-    m_socket.read_some(boost::asio::buffer(received_data));
+std::string NetworkManager::receiveData() {
+    
+    uint32_t message_length;
+    boost::asio::read(m_socket, boost::asio::buffer(&message_length, sizeof(message_length)));
+    message_length = ntohl(message_length); 
+
+    boost::asio::streambuf buffer;
+    boost::asio::read(m_socket, buffer, boost::asio::transfer_exactly(message_length));
+    std::istream is(&buffer);
+    std::string received_data((std::istreambuf_iterator<char>(is)), std::istreambuf_iterator<char>());
+
     return received_data;
 }

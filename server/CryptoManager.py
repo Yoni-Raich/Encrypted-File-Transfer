@@ -24,9 +24,9 @@ class CryptoManager:
         return self.encrypt_rsa(self.aes_key)
 
     def generate_rsa_keys(self):
-        key = RSA.generate(1024)
-        self.private_key = key.export_key()
-        self.public_key = key.publickey().export_key()
+        key = RSA.generate(2048)  # Increased key size for better security
+        self.private_key = key
+        self.public_key = key.publickey()
 
     def encrypt_aes(self, data):
         cipher_aes = AES.new(self.aes_key, AES.MODE_CBC)
@@ -41,13 +41,14 @@ class CryptoManager:
         return plaintext
 
     def encrypt_rsa(self, data):
+        if isinstance(data, str):
+            data = data.encode('utf-8')
         cipher_rsa = PKCS1_OAEP.new(self.public_key)
         encrypted_data = cipher_rsa.encrypt(data)
         return encrypted_data
 
     def decrypt_rsa(self, encrypted_data):
-        private_key = RSA.import_key(self.private_key)
-        cipher_rsa = PKCS1_OAEP.new(private_key)
+        cipher_rsa = PKCS1_OAEP.new(self.private_key)
         decrypted_data = cipher_rsa.decrypt(encrypted_data)
         return decrypted_data
 
@@ -68,5 +69,6 @@ if __name__ == "__main__":
     crypto_manager = CryptoManager()
     crypto_manager.generate_rsa_keys()
     crypto_manager.generate_aes_key()
-    enc_aes_key = crypto_manager.get_encrypted_aes_key()
-    print(enc_aes_key)
+    enc_data = crypto_manager.encrypt_rsa("Hello")
+    dec_data = crypto_manager.decrypt_rsa(enc_data)
+    print(dec_data.decode('utf'))

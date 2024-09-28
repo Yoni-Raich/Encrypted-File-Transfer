@@ -6,6 +6,8 @@
 
 class CryptoManager {
 public:
+    static const size_t AES_KEY_SIZE = 32; // 256 bits
+    
     CryptoManager();
 
     void generateRSAKeys();
@@ -13,14 +15,14 @@ public:
     void generateAESKey();
     std::string encryptAES(const std::string& data);
     std::string decryptAES(const std::string& data);
-    std::string encryptRSA(const CryptoPP::SecByteBlock& data);
+    std::string encryptRSA(const std::string plainText);
     std::string decryptRSA(const std::string& encryptedData);
     std::string getCRC(const std::string& data, bool decrypt = false);
 
     CryptoPP::RSA::PrivateKey getPrivateKey();
     std::string getPublicKey();
     CryptoPP::SecByteBlock getAESKey();
-    void setAESKey(const CryptoPP::SecByteBlock& key);
+    void setAESKey(const std::string& keyString);
 
 private:
     CryptoPP::RSA::PrivateKey privateKey;
