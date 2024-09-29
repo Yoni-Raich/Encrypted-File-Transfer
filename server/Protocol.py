@@ -1,6 +1,4 @@
 import struct
-from CryptoManager import CryptoManager
-from ClientManager import ClientManager
 
 class Protocol:
     CLIENT_ID_LENGTH = 16
@@ -9,21 +7,17 @@ class Protocol:
     PAYLOAD_SIZE_LENGTH = 4
 
     def __init__(self):
-        self.crypto_manager = CryptoManager()
-        self.client_manager = ClientManager()
+        pass
 
     def parse_request(self, data):
         if len(data) < 24:
             raise ValueError("Data is too short to contain a valid request")
 
-        # פירוק הכותרת (header) עם סדר בתים גדול
+        # Parse the header with big-endian byte order
         header = data[:23]
         client_id, version, code, payload_size = struct.unpack('>16s B H I', header)
-
-        # המרת client_id למחרוזת רגילה
-        client_id = client_id.decode('utf-8').rstrip('\x00')
-
-        # חילוץ ה-payload
+        
+        # Extract the payload
         payload = data[23:23+payload_size]
 
         return client_id, version, code, payload

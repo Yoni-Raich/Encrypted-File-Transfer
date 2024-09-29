@@ -12,8 +12,8 @@ class CryptoManager:
 
         if public_key:
             try:
-                public_key_bytes = base64.b64decode(public_key)
-                self.public_key = RSA.import_key(public_key_bytes)
+                #public_key_bytes = base64.b64decode(public_key)
+                self.public_key = RSA.import_key(public_key)
             except (ValueError, TypeError) as e:
                 print(f"Invalid public key format: {e}")
     

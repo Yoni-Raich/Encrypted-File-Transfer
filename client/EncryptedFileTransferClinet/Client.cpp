@@ -52,11 +52,41 @@ std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) {
     return ss.str();
 }
 
-bool Client::register_to_server() {
-    std::vector<uint8_t> request = m_protocol.create_register_request(m_client_id, m_name);
-    m_network_manager.sendData(request);
+std::vector<uint8_t> stringToBinary(const std::string& input, size_t desiredSize) {
+    std::vector<uint8_t> binaryData(desiredSize, 0);  // Initialize with zeros
+
+    size_t inputSize = std::min(input.length(), desiredSize);
     
-    std::vector<uint8_t> response = m_network_manager.receiveDataBytes();
+    for (size_t i = 0; i < inputSize; ++i) {
+        binaryData[i] = static_cast<uint8_t>(input[i]);
+    }
+
+    return binaryData;
+}
+
+std::vector<uint8_t> uuidStringToBinary(const std::string& uuid) {
+    std::vector<uint8_t> binaryData;
+    binaryData.reserve(16);
+
+    // Remove hyphens from the UUID string
+    std::string cleanUuid = uuid;
+    cleanUuid.erase(std::remove(cleanUuid.begin(), cleanUuid.end(), '-'), cleanUuid.end());
+
+    // Convert hex string to bytes
+    for (size_t i = 0; i < 32; i += 2) {
+        std::string byteString = cleanUuid.substr(i, 2);
+        uint8_t byte = static_cast<uint8_t>(std::stoi(byteString, nullptr, 16));
+        binaryData.push_back(byte);
+    }
+
+    return binaryData;
+}
+
+bool Client::register_to_server() {
+    std::vector<uint8_t> request = m_protocol.create_register_request(stringToBinary(m_client_id, 16), m_name);
+    m_network_manager.sendRequest(request);
+    
+    std::vector<uint8_t> response = m_network_manager.receiveResponse();
     uint8_t version;
     uint16_t code;
     std::vector<uint8_t> payload;
@@ -72,25 +102,41 @@ bool Client::register_to_server() {
 bool Client::perform_key_exchange() {
     m_crypto_manager.generateRSAKeys();
     std::vector<uint8_t> public_key = m_crypto_manager.getPublicKey();
-    std::vector<uint8_t> request = m_protocol.create_public_key_request(m_client_id, public_key);
-    m_network_manager.sendData(request);
+    std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
+    nameBin.insert(nameBin.end(), public_key.begin(), public_key.end());
+    std::vector<uint8_t> request = m_protocol.create_public_key_request(uuidStringToBinary(m_client_id), nameBin);
+    m_network_manager.sendRequest(request);
 
-    std::vector<uint8_t> response = m_network_manager.receiveDataBytes();
+    std::vector<uint8_t> response = m_network_manager.receiveResponse();
     uint8_t version;
     uint16_t code;
     std::vector<uint8_t> payload;
     std::tie(version, code, payload) = m_protocol.parse_response(response);
 
     if (code == 1602) {
-        std::string aes_key = m_crypto_manager.decryptRSA(payload);
+        // Extract Client ID (first 16 bytes)
+        std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + 16);
+        std::string received_client_id = bytesToUUIDString(client_id_bytes);
+
+        // Verify that the received Client ID matches our Client ID
+        if (received_client_id != m_client_id) {
+            std::cerr << "Received Client ID does not match our Client ID" << std::endl;
+            return false;
+        }
+
+        // Extract encrypted AES key (remaining bytes)
+        std::vector<uint8_t> encrypted_aes_key(payload.begin() + 16, payload.end());
+        
+        // Decrypt the AES key
+        std::string aes_key = m_crypto_manager.decryptRSA(encrypted_aes_key);
         m_crypto_manager.setAESKey(aes_key);
         return true;
     }
     return false;
 }
-//
+
 //void Client::handle_server_response() {
-//    std::vector<uint8_t> response = m_network_manager.receiveData();
+//    std::vector<uint8_t> response = m_network_manager.receiveDataBytes();
 //    uint8_t version;
 //    uint16_t code;
 //    std::vector<uint8_t> payload;
@@ -113,7 +159,7 @@ bool Client::perform_key_exchange() {
 //            std::cerr << "Unknown response code: " << code << std::endl;
 //    }
 //}
-//
+
 //void Client::send_file(const std::string& filename) {
 //    std::ifstream file(filename, std::ios::binary);
 //    if (!file) {

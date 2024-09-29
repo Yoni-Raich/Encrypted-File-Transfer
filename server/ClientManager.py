@@ -8,7 +8,7 @@ class ClientManager:
         client_id = uuid.uuid4()
         print(client_id)
         if client_id not in self.clients:
-            self.clients[client_id] = {'name': name}
+            self.clients[str(client_id)] = {'name': name}
         else:
             raise ValueError("Client ID already exists")
         return client_id.bytes
@@ -18,7 +18,7 @@ class ClientManager:
 
     def update_client(self, client_id, **kwargs):
         if client_id in self.clients:
-            self.clients[client_id].update(kwargs)
+            self.clients[client_id.decode('utf-8')].update(kwargs)
             return True
         return False
 
@@ -32,7 +32,7 @@ class ClientManager:
         return client_id in self.clients
     
 if __name__ == "__main__":
-    my_uuid = uuid.uuid4()
+    my_uuid = uuid.uuid4().hex
 
     # המרת ה-UUID ל-16 bytes
     uuid_bytes = my_uuid.bytes

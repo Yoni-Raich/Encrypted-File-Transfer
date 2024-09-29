@@ -16,10 +16,16 @@ public:
     std::string receiveData();
     std::vector<uint8_t> receiveDataBytes();
 
+    void sendRequest(const std::vector<uint8_t>& request);
+    std::vector<uint8_t> receiveResponse();
+
 private:
     boost::asio::io_context m_io_context;
     boost::asio::ip::tcp::socket m_socket;
     boost::asio::ip::tcp::resolver m_resolver;
     std::string m_server_ip;
     std::string m_server_port;
+
+    static constexpr size_t REQUEST_HEADER_SIZE = 23;  // 16 (Client ID) + 1 (Version) + 2 (Code) + 4 (Payload size)
+    static constexpr size_t RESPONSE_HEADER_SIZE = 7;  // 1 (Version) + 2 (Code) + 4 (Payload size)
 };

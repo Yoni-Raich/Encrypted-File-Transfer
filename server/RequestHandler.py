@@ -1,15 +1,19 @@
 import struct
 from Crypto.PublicKey import RSA
 from Protocol import Protocol
+from CryptoManager import CryptoManager
+from ClientManager import ClientManager
+
 
 class RequestHandler:
     def __init__(self):
         self.protocol = Protocol()
-
+        self.client_manager = ClientManager()
+        self.crypto_manager = None
     def handle_register(self, client_id, payload):
         name = payload.decode('utf-8').strip('\x00')
         try:
-            client_id = self.protocol.client_manager.add_client(name)
+            client_id = self.client_manager.add_client(name)
             return self.protocol.create_response(1600, client_id)
         except Exception as e:
             print(f"Error registering client: {e}")
@@ -17,25 +21,25 @@ class RequestHandler:
 
     def handle_public_key(self, client_id, payload):
         name = payload[:255].decode('utf-8').strip('\x00') #TODO: Check why name is not used
-        public_key = RSA.import_key(payload[255:]) #TODO: why you need to import the key
-        self.protocol.client_manager.update_client(client_id, public_key=public_key)
+        public_key = payload[255:].rstrip(b'\x00')
+        self.client_manager.update_client(client_id, public_key=public_key)
         
-        self.protocol.crypto_manager.public_key = public_key
-        self.protocol.crypto_manager.generate_aes_key()
-        enc_aes_key = self.protocol.crypto_manager.get_encrypted_aes_key()
+        self.crypto_manager = CryptoManager(public_key)
+        self.crypto_manager.generate_aes_key()
+        enc_aes_key = self.crypto_manager.get_encrypted_aes_key()
         
-        self.protocol.client_manager.update_client(client_id, aes_key=self.protocol.crypto_manager.aes_key)
+        self.client_manager.update_client(client_id, aes_key=self.crypto_manager.aes_key)
         return self.protocol.create_response(1602, client_id, enc_aes_key)
 
     def handle_reconnect(self, client_id, payload):
         name = payload.decode('utf-8').strip('\x00')
-        client = self.protocol.client_manager.get_client(client_id)
+        client = self.client_manager.get_client(client_id)
         if client and client['name'] == name:
             aes_key = client['aes_key']
             public_key = client['public_key']
-            self.protocol.crypto_manager.public_key = public_key
-            self.protocol.crypto_manager.aes_key = aes_key
-            enc_aes_key = self.protocol.crypto_manager.get_encrypted_aes_key()
+            crypto_manager = CryptoManager(public_key)
+            crypto_manager.aes_key = aes_key
+            enc_aes_key = crypto_manager.get_encrypted_aes_key()
             return self.protocol.create_response(1605, client_id, enc_aes_key)
         else:
             return self.protocol.create_response(1606, client_id)
@@ -45,13 +49,14 @@ class RequestHandler:
         filename = payload[12:267].decode('utf-8').strip('\x00')
         encrypted_file_content = payload[267:]
         
-        client = self.protocol.client_manager.get_client(client_id)
+        client = self.client_manager.get_client(client_id)
         if client:
-            self.protocol.crypto_manager.aes_key = client['aes_key']
-            file_content = self.protocol.crypto_manager.decrypt_aes(encrypted_file_content)
+            crypto_manager = CryptoManager(client['public_key'])
+            crypto_manager.aes_key = client['aes_key']
+            file_content = crypto_manager.decrypt_aes(encrypted_file_content)
             
             # Calculate CRC
-            crc = self.protocol.crypto_manager.get_CRC(file_content)
+            crc = crypto_manager.get_CRC(file_content)
 
             return self.protocol.create_response(1603, client_id, filename.encode('utf-8'), crc)
         else:

@@ -14,11 +14,11 @@ public:
     std::tuple<uint8_t, uint16_t, std::vector<uint8_t>> parse_response(const std::vector<uint8_t>& data);
 
     // Create request to send to server
-    std::vector<uint8_t> create_request(uint16_t code, const std::string& client_id, uint8_t version, const std::vector<uint8_t>& payload);
+    std::vector<uint8_t> create_request(uint16_t code, const std::vector<uint8_t> client_id, uint8_t version, const std::vector<uint8_t>& payload);
 
     // Helper functions for specific message types
-    std::vector<uint8_t> create_register_request(const std::string& client_id, const std::string& name);
-    std::vector<uint8_t> create_public_key_request(const std::string& client_id, const std::vector<uint8_t>& public_key);
+    std::vector<uint8_t> create_register_request(const std::vector<uint8_t> client_id, const std::string& name);
+    std::vector<uint8_t> create_public_key_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& public_key);
     std::vector<uint8_t> create_file_request(const std::string& client_id, const std::string& filename, const std::vector<uint8_t>& file_content);
     std::vector<uint8_t> create_crc_ok_request(const std::string& client_id, const std::string& filename);
     std::vector<uint8_t> create_crc_retry_request(const std::string& client_id, const std::string& filename);

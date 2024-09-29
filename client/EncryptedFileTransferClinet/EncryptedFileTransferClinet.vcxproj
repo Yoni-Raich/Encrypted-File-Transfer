@@ -132,6 +132,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cksum_new.cpp" />
     <ClCompile Include="Client.cpp" />
     <ClCompile Include="CryptoManager.cpp" />
     <ClCompile Include="main.cpp" />
@@ -143,6 +144,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cksum_new.h" />
     <ClInclude Include="Client.h" />
     <ClInclude Include="CryptoManager.h" />
     <ClInclude Include="FileHandler.h" />

@@ -2,12 +2,24 @@
 #include <cstring>
 #include <stdexcept>
 #include <random>
+#include <map>
 
 // Constants for message structure
 constexpr size_t CLIENT_ID_SIZE = 16;  // Adjust the value as needed
 constexpr size_t VERSION = 1;
 constexpr size_t CODE_SIZE = 2;
 constexpr size_t PAYLOAD_SIZE_SIZE = 4;
+
+// Define payload sizes for each request code
+const std::map<uint16_t, uint32_t> PAYLOAD_SIZES = {
+    {825, 255},   // Register
+    {826, 160 + 255},   // Send Public Key
+    {827, 128},   // Reconnect
+    {828, 255},   // Send File
+    {900, 4},     // CRC OK
+    {901, 4},     // CRC Retry
+    {902, 4}      // CRC Fail
+};
 
 Protocol::Protocol() {}
 
@@ -27,13 +39,11 @@ std::tuple<uint8_t, uint16_t, std::vector<uint8_t>> Protocol::parse_response(con
     return std::make_tuple(version, code, payload);
 }
 
-std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::string& client_id, uint8_t version, const std::vector<uint8_t>& payload) {
+std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<uint8_t> client_id, uint8_t version, const std::vector<uint8_t>& payload) {
     std::vector<uint8_t> request;
 
     // Add client_id (16 bytes)
-    std::vector<uint8_t> client_id_bin(16, 0);
-    std::memcpy(client_id_bin.data(), client_id.c_str(), std::min(client_id.size(), size_t(16)));
-    request.insert(request.end(), client_id_bin.begin(), client_id_bin.end());
+    request.insert(request.end(), client_id.begin(), client_id.end());
 
     // Add version (1 byte)
     request.push_back(version);
@@ -42,30 +52,37 @@ std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::string& 
     request.push_back((code >> 8) & 0xFF);
     request.push_back(code & 0xFF);
 
+    // Get the required payload size for this code
+    uint32_t required_payload_size;
+    try {
+        required_payload_size = PAYLOAD_SIZES.at(code);
+    } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Invalid request code");
+    }
+
     // Add payload size (4 bytes)
-    uint32_t payload_size = payload.size();
-    request.push_back((payload_size >> 24) & 0xFF);
-    request.push_back((payload_size >> 16) & 0xFF);
-    request.push_back((payload_size >> 8) & 0xFF);
-    request.push_back(payload_size & 0xFF);
+    request.push_back((required_payload_size >> 24) & 0xFF);
+    request.push_back((required_payload_size >> 16) & 0xFF);
+    request.push_back((required_payload_size >> 8) & 0xFF);
+    request.push_back(required_payload_size & 0xFF);
 
     // Add payload
     request.insert(request.end(), payload.begin(), payload.end());
 
     // Pad the payload to the specified size
-    if (payload.size() < payload_size) {
-        request.insert(request.end(), payload_size - payload.size(), 0);
+    if (payload.size() < required_payload_size) {
+        request.insert(request.end(), required_payload_size - payload.size(), 0);
     }
 
     return request;
 }
 
-std::vector<uint8_t> Protocol::create_register_request(const std::string& client_id, const std::string& name) {
+std::vector<uint8_t> Protocol::create_register_request(const std::vector<uint8_t> client_id, const std::string& name) {
     std::vector<uint8_t> payload(name.begin(), name.end());
     return create_request(825, client_id, 3, payload);
 }
 
-std::vector<uint8_t> Protocol::create_public_key_request(const std::string& client_id, const std::vector<uint8_t>& public_key) {
+std::vector<uint8_t> Protocol::create_public_key_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& public_key) {
     return create_request(826, client_id,3, public_key);
 }
 //
