@@ -13,9 +13,19 @@ class Protocol:
         self.client_manager = ClientManager()
 
     def parse_request(self, data):
-        header = data[:24]
-        client_id, version, code, payload_size = struct.unpack('16s B H I', header)
-        payload = data[24:]
+        if len(data) < 24:
+            raise ValueError("Data is too short to contain a valid request")
+
+        # פירוק הכותרת (header) עם סדר בתים גדול
+        header = data[:23]
+        client_id, version, code, payload_size = struct.unpack('>16s B H I', header)
+
+        # המרת client_id למחרוזת רגילה
+        client_id = client_id.decode('utf-8').rstrip('\x00')
+
+        # חילוץ ה-payload
+        payload = data[23:23+payload_size]
+
         return client_id, version, code, payload
 
     def create_response(self, code, client_id=None, *args):

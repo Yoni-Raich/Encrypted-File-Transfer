@@ -14,7 +14,7 @@ public:
     std::tuple<uint8_t, uint16_t, std::vector<uint8_t>> parse_response(const std::vector<uint8_t>& data);
 
     // Create request to send to server
-    std::vector<uint8_t> create_request(uint16_t code, const std::string& client_id, const std::vector<uint8_t>& payload);
+    std::vector<uint8_t> create_request(uint16_t code, const std::string& client_id, uint8_t version, const std::vector<uint8_t>& payload);
 
     // Helper functions for specific message types
     std::vector<uint8_t> create_register_request(const std::string& client_id, const std::string& name);

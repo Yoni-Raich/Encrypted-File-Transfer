@@ -1,6 +1,7 @@
 #include "Client.h"
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 
 Client::Client(const std::string& server_ip, const std::string& server_port)
     : m_network_manager(server_ip, server_port) {
@@ -35,20 +36,36 @@ void Client::run() {
     m_network_manager.disconnect();
 }
 
+std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) {
+    if (bytes.size() != 16) {
+        throw std::invalid_argument("UUID must be 16 bytes");
+    }
+
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        ss << std::setw(2) << static_cast<int>(bytes[i]);
+        if (i == 3 || i == 5 || i == 7 || i == 9) {
+            ss << "-";
+        }
+    }
+    return ss.str();
+}
+
 bool Client::register_to_server() {
-   /* std::vector<uint8_t> request = m_protocol.create_register_request(m_client_id, m_name);
+    std::vector<uint8_t> request = m_protocol.create_register_request(m_client_id, m_name);
     m_network_manager.sendData(request);
     
-    std::vector<uint8_t> response = m_network_manager.receiveData();
+    std::vector<uint8_t> response = m_network_manager.receiveDataBytes();
     uint8_t version;
     uint16_t code;
     std::vector<uint8_t> payload;
     std::tie(version, code, payload) = m_protocol.parse_response(response);
 
     if (code == 1600 && !payload.empty()) {
-        m_client_id = std::string(payload.begin(), payload.begin() + 16);
+        m_client_id = bytesToUUIDString(payload);
         return true;
-    }*/
+    }
     return false;
 }
 //

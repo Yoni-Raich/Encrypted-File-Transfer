@@ -36,15 +36,6 @@ class Server:
         while True:
             try:
                 data = receive_full_message(client_socket)
-                print(f"receive data:\n{data}")
-                crypto_m = CryptoManager(data)
-                crypto_m.generate_aes_key()
-                encrypted_aes = crypto_m.get_encrypted_aes_key()
-                print(encrypted_aes)
-                message_length = len(encrypted_aes)
-                client_socket.send(struct.pack('!I', message_length))
-                client_socket.send(encrypted_aes)
-                
                 if not data:
                     break
 
@@ -62,7 +53,9 @@ class Server:
                     response = self.requestHandler.handle_crc_response(client_id, code, payload)
                 else:
                     response = self.protocol.create_response(1607, client_id)  # General error
-
+                
+                message_length = len(response)
+                client_socket.send(struct.pack('!I', message_length))
                 client_socket.send(response)
 
             except Exception as e:
