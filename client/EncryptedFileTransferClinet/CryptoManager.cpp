@@ -91,12 +91,12 @@ void CryptoManager::generateRSAKeys()
         return ciphertext;
     }
 
-    std::string CryptoManager::decryptRSA(const std::string& encryptedData) {
+    std::string CryptoManager::decryptRSA(const std::vector<uint8_t>& encryptedData) {
         AutoSeededRandomPool rng;
         std::string decryptedData;
 
         RSAES_OAEP_SHA_Decryptor decryptor(privateKey);
-        StringSource ss(encryptedData, true,
+        StringSource ss(reinterpret_cast<const byte*>(encryptedData.data()), encryptedData.size(), true,
             new PK_DecryptorFilter(rng, decryptor,
                 new StringSink(decryptedData)
             )
@@ -128,14 +128,14 @@ void CryptoManager::generateRSAKeys()
 		return privateKey;
 	}
 
-    std::string CryptoManager::getPublicKey() {
+    std::vector<uint8_t> CryptoManager::getPublicKey() {
         ByteQueue queue;
         publicKey.DEREncodePublicKey(queue);
-        std::string publicKeyStr;
-        CryptoPP::Base64Encoder encoder(new CryptoPP::StringSink(publicKeyStr), false);
-        queue.CopyTo(encoder);
-        encoder.MessageEnd();
-        return publicKeyStr;
+
+        std::vector<uint8_t> publicKeyVec(queue.CurrentSize());
+        queue.Get(reinterpret_cast<byte*>(&publicKeyVec[0]), publicKeyVec.size());
+
+        return publicKeyVec;
     }
 
     SecByteBlock CryptoManager::getAESKey() {

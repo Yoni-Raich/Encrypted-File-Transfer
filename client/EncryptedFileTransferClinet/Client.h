@@ -21,7 +21,7 @@ private:
     CryptoManager m_crypto_manager;
 
     bool register_to_server();
-    //bool perform_key_exchange();
+    bool perform_key_exchange();
     void handle_server_response();
     //void send_file(const std::string& filename);
     //void handle_crc_response(uint16_t code, const std::vector<uint8_t>& payload);

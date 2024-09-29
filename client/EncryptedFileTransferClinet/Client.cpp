@@ -21,14 +21,14 @@ void Client::run() {
             return;
         }
 
-        //if (!perform_key_exchange()) {
-        //    std::cerr << "Failed to perform key exchange" << std::endl;
-        //    return;
-        //}
+        if (!perform_key_exchange()) {
+            std::cerr << "Failed to perform key exchange" << std::endl;
+            return;
+        }
 
-        //while (true) {
-        //    handle_server_response();
-        //}
+       /* while (true) {
+            handle_server_response();
+        }*/
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
@@ -69,24 +69,25 @@ bool Client::register_to_server() {
     return false;
 }
 //
-//bool Client::perform_key_exchange() {
-//    std::vector<uint8_t> public_key = m_crypto_manager.generate_rsa_key_pair();
-//    std::vector<uint8_t> request = m_protocol.create_public_key_request(m_client_id, public_key);
-//    m_network_manager.sendData(request);
-//
-//    std::vector<uint8_t> response = m_network_manager.receiveData();
-//    uint8_t version;
-//    uint16_t code;
-//    std::vector<uint8_t> payload;
-//    std::tie(version, code, payload) = m_protocol.parse_response(response);
-//
-//    if (code == 1602) {
-//        std::vector<uint8_t> aes_key = m_crypto_manager.decrypt_rsa(payload);
-//        m_crypto_manager.set_aes_key(aes_key);
-//        return true;
-//    }
-//    return false;
-//}
+bool Client::perform_key_exchange() {
+    m_crypto_manager.generateRSAKeys();
+    std::vector<uint8_t> public_key = m_crypto_manager.getPublicKey();
+    std::vector<uint8_t> request = m_protocol.create_public_key_request(m_client_id, public_key);
+    m_network_manager.sendData(request);
+
+    std::vector<uint8_t> response = m_network_manager.receiveDataBytes();
+    uint8_t version;
+    uint16_t code;
+    std::vector<uint8_t> payload;
+    std::tie(version, code, payload) = m_protocol.parse_response(response);
+
+    if (code == 1602) {
+        std::string aes_key = m_crypto_manager.decryptRSA(payload);
+        m_crypto_manager.setAESKey(aes_key);
+        return true;
+    }
+    return false;
+}
 //
 //void Client::handle_server_response() {
 //    std::vector<uint8_t> response = m_network_manager.receiveData();

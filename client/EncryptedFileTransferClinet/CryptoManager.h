@@ -2,6 +2,7 @@
 #include <string>
 #include <cryptopp/rsa.h>
 #include <cryptopp/secblock.h>
+#include <vector>
 
 
 class CryptoManager {
@@ -16,11 +17,11 @@ public:
     std::string encryptAES(const std::string& data);
     std::string decryptAES(const std::string& data);
     std::string encryptRSA(const std::string plainText);
-    std::string decryptRSA(const std::string& encryptedData);
+    std::string decryptRSA(const std::vector<uint8_t>& encryptedData);
     std::string getCRC(const std::string& data, bool decrypt = false);
+    std::vector<uint8_t> getPublicKey();
 
     CryptoPP::RSA::PrivateKey getPrivateKey();
-    std::string getPublicKey();
     CryptoPP::SecByteBlock getAESKey();
     void setAESKey(const std::string& keyString);
 

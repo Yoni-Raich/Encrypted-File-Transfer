@@ -65,9 +65,9 @@ std::vector<uint8_t> Protocol::create_register_request(const std::string& client
     return create_request(825, client_id, 3, payload);
 }
 
-//std::vector<uint8_t> Protocol::create_public_key_request(const std::string& client_id, const std::vector<uint8_t>& public_key) {
-//    return create_request(1026, client_id, public_key);
-//}
+std::vector<uint8_t> Protocol::create_public_key_request(const std::string& client_id, const std::vector<uint8_t>& public_key) {
+    return create_request(826, client_id,3, public_key);
+}
 //
 //std::vector<uint8_t> Protocol::create_file_request(const std::string& client_id, const std::string& filename, const std::vector<uint8_t>& file_content) {
 //    std::vector<uint8_t> payload;
