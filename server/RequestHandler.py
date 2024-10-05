@@ -6,12 +6,34 @@ from ClientManager import ClientManager
 
 
 class RequestHandler:
-    def __init__(self):
+    def __init__(self, receive_request):
         self.protocol = Protocol()
         self.client_manager = ClientManager()
         self.crypto_manager = None
+        self.receive_request = receive_request
+
+    def create_response(self):
+        code = self.receive_request.code
+        client_id = self.receive_request.client_id
+        payload = self.receive_request.payload
+
+        if code == 825:  # Register request
+            response = self.handle_register(client_id, payload)
+        elif code == 826:  # Send public key
+            response = self.handle_public_key(client_id, payload)
+        elif code == 827:  # Reconnect
+            response = self.handle_reconnect(client_id, payload)
+        elif code == 828:  # Send file
+            response = self.handle_file_transfer(client_id, payload)
+        elif code in [900, 901, 902]:  # CRC responses
+            response = self.handle_crc_response(client_id, code, payload)
+        else:
+            response = self.protocol.create_response(1607, client_id)  # General error
+
+        return response
+
     def handle_register(self, client_id, payload):
-        name = payload.decode('utf-8').strip('\x00')
+        name = self.receive_request.get_name()
         try:
             client_id = self.client_manager.add_client(name)
             return self.protocol.create_response(1600, client_id)
@@ -20,10 +42,9 @@ class RequestHandler:
             return self.protocol.create_response(1601)
 
     def handle_public_key(self, client_id, payload):
-        name = payload[:255].decode('utf-8').strip('\x00') #TODO: Check why name is not used
-        public_key = payload[255:].rstrip(b'\x00')
+        name = self.receive_request.get_name()
+        public_key = self.receive_request.get_public_key()
         self.client_manager.update_client(client_id, public_key=public_key)
-        
         self.crypto_manager = CryptoManager(public_key)
         self.crypto_manager.generate_aes_key()
         enc_aes_key = self.crypto_manager.get_encrypted_aes_key()
@@ -32,7 +53,7 @@ class RequestHandler:
         return self.protocol.create_response(1602, client_id, enc_aes_key)
 
     def handle_reconnect(self, client_id, payload):
-        name = payload.decode('utf-8').strip('\x00')
+        name = self.receive_request.get_name()
         client = self.client_manager.get_client(client_id)
         if client and client['name'] == name:
             aes_key = client['aes_key']
@@ -45,25 +66,23 @@ class RequestHandler:
             return self.protocol.create_response(1606, client_id)
 
     def handle_file_transfer(self, client_id, payload):
-        content_size, file_size, chunk_number = struct.unpack('!III', payload[:12])
-        filename = payload[12:267].decode('utf-8').strip('\x00')
-        encrypted_file_content = payload[267:]
+        file_structure = self.receive_request.get_file_structure()
         
         client = self.client_manager.get_client(client_id)
         if client:
             crypto_manager = CryptoManager(client['public_key'])
             crypto_manager.aes_key = client['aes_key']
-            file_content = crypto_manager.decrypt_aes(encrypted_file_content)
+            file_content = crypto_manager.decrypt_aes(file_structure['encrypted_file_content'])
             
             # Calculate CRC
             crc = crypto_manager.get_CRC(file_content)
 
-            return self.protocol.create_response(1603, client_id, filename.encode('utf-8'), crc)
+            return self.protocol.create_response(1603, client_id, file_structure['filename'].encode('utf-8'), crc)
         else:
             return self.protocol.create_response(1607, client_id)  # General error
 
     def handle_crc_response(self, client_id, code, payload):
-        filename = payload.decode('utf-8').strip('\x00')
+        filename = self.receive_request.get_name()
         response = self.protocol.create_response(1604, client_id)
         
         if code == 900:

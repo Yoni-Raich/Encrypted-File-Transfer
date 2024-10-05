@@ -3,7 +3,7 @@ import struct
 import threading
 from Protocol import Protocol
 from RequestHandler import RequestHandler
-from CryptoManager import CryptoManager
+from RequestStructur import RequestStructure
 
 REQUEST_HEADER_SIZE = 23
 RESPONSE_HEADER_SIZE = 7
@@ -46,7 +46,8 @@ class Server:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.protocol = Protocol()
-        self.requestHandler = RequestHandler()
+        self.requestHandler = None
+        self.request_structure = None
 
     def start(self):
         self.socket.listen()
@@ -63,21 +64,9 @@ class Server:
                 if not request:
                     break
 
-                client_id, version, code, payload = self.protocol.parse_request(request)
-                #print(f"client_id: {client_id}, version: {version}, code: {code}, \npayload: {payload}\n")
-                if code == 825:  # Register request
-                    response = self.requestHandler.handle_register(client_id, payload)
-                elif code == 826:  # Send public key
-                    response = self.requestHandler.handle_public_key(client_id, payload)
-                elif code == 827:  # Reconnect
-                    response = self.requestHandler.handle_reconnect(client_id, payload)
-                elif code == 828:  # Send file
-                    response = self.requestHandler.handle_file_transfer(client_id, payload)
-                elif code in [900, 901, 902]:  # CRC responses
-                    response = self.requestHandler.handle_crc_response(client_id, code, payload)
-                else:
-                    response = self.protocol.create_response(1607, client_id)  # General error
-                
+                self.receive_request = self.protocol.parse_request(request)
+                self.requestHandler = RequestHandler(self.receive_request)
+                response = self.requestHandler.create_response()
                 send_response(client_socket, response)
 
             except Exception as e:
