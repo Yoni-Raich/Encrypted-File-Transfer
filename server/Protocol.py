@@ -1,6 +1,7 @@
 import struct
+import uuid
 
-from RequestStructur import RequestStructure
+from RequestStructure import RequestStructure
 
 class Protocol:
     CLIENT_ID_LENGTH = 16
@@ -39,6 +40,10 @@ class Protocol:
         return RequestStructure(client_id, version, code, payload_size, payload)
 
     def create_response(self, code, client_id=None, *args):
+        if client_id and isinstance(client_id, str):
+            uuid_obj = uuid.UUID(client_id)
+            client_id = uuid_obj.bytes
+            
         if code == self.REGISTER_SUCCESS:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
         elif code == self.REGISTER_FAIL:

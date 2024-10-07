@@ -25,7 +25,8 @@ void Client::run() {
             std::cerr << "Failed to perform key exchange" << std::endl;
             return;
         }
-
+        //print the current folder path
+        send_file("C:\\final_project\\client\\EncryptedFileTransferClinet\\x64\\Debug\\test.txt");
        /* while (true) {
             handle_server_response();
         }*/
@@ -160,20 +161,28 @@ bool Client::perform_key_exchange() {
 //    }
 //}
 
-//void Client::send_file(const std::string& filename) {
-//    std::ifstream file(filename, std::ios::binary);
-//    if (!file) {
-//        std::cerr << "Failed to open file: " << filename << std::endl;
-//        return;
-//    }
-//
-//    std::vector<uint8_t> file_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-//    file.close();
-//
-//    std::vector<uint8_t> encrypted_content = m_crypto_manager.encrypt_aes(file_content);
-//    std::vector<uint8_t> request = m_protocol.create_file_request(m_client_id, filename, encrypted_content);
-//    m_network_manager.sendData(request);
-//}
+void Client::send_file(const std::string& filename) 
+{
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return;
+    }
+
+    std::vector<uint8_t> file_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    std::vector<uint8_t> encrypted_content = m_crypto_manager.encryptAES(file_content);
+    size_t totPackeg = encrypted_content.size() / m_protocol.MAX_FILE_PACKET_SIZE + 1;
+    std::vector<uint8_t> bit_client_id = uuidStringToBinary(m_client_id);
+    for (size_t i = 1; i <= totPackeg; i++) 
+    {
+		std::vector<uint8_t> request = m_protocol.create_file_request(bit_client_id, filename, file_content.size(),encrypted_content, i);
+		m_network_manager.sendRequest(request);
+	}
+  
+    
+}
 //
 //void Client::handle_crc_response(uint16_t code, const std::vector<uint8_t>& payload) {
 //    std::string filename(payload.begin(), payload.begin() + 255);

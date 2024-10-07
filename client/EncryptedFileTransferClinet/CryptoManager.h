@@ -14,8 +14,8 @@ public:
     void generateRSAKeys();
     std::string getEncryptedAESKey();
     void generateAESKey();
-    std::string encryptAES(const std::string& data);
-    std::string decryptAES(const std::string& data);
+    std::vector<uint8_t> encryptAES(const std::vector<uint8_t>& data);
+    std::string decryptAES(const std::vector<uint8_t>& data);
     std::string encryptRSA(const std::string plainText);
     std::string decryptRSA(const std::vector<uint8_t>& encryptedData);
     std::string getCRC(const std::string& data, bool decrypt = false);

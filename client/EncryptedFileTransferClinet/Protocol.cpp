@@ -14,12 +14,14 @@ constexpr size_t PAYLOAD_SIZE_SIZE = 4;
 const std::map<uint16_t, uint32_t> PAYLOAD_SIZES = {
     {825, 255},   // Register
     {826, 160 + 255},   // Send Public Key
-    {827, 128},   // Reconnect
-    {828, 255},   // Send File
+    {827, 255},   // Reconnect
+    {828, 1291},   // Send File
     {900, 4},     // CRC OK
     {901, 4},     // CRC Retry
     {902, 4}      // CRC Fail
 };
+
+
 
 Protocol::Protocol() {}
 
@@ -37,6 +39,14 @@ std::tuple<uint8_t, uint16_t, std::vector<uint8_t>> Protocol::parse_response(con
     std::vector<uint8_t> payload(data.begin() + VERSION + CODE_SIZE + PAYLOAD_SIZE_SIZE, data.end());
 
     return std::make_tuple(version, code, payload);
+}
+
+void pushBytes(std::vector<uint8_t> &binVector, size_t valuToPush, const int bytes)
+{
+    for (int i = (bytes-1) * 8; i >= 0 ; i-=8)
+    {
+		binVector.push_back((valuToPush >> i) & 0xFF);
+	}
 }
 
 std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<uint8_t> client_id, uint8_t version, const std::vector<uint8_t>& payload) {
@@ -86,12 +96,38 @@ std::vector<uint8_t> Protocol::create_public_key_request(const std::vector<uint8
     return create_request(826, client_id,3, public_key);
 }
 //
-//std::vector<uint8_t> Protocol::create_file_request(const std::string& client_id, const std::string& filename, const std::vector<uint8_t>& file_content) {
-//    std::vector<uint8_t> payload;
-//    payload.insert(payload.end(), filename.begin(), filename.end());
-//    payload.insert(payload.end(), file_content.begin(), file_content.end());
-//    return create_request(1027, client_id, payload);
-//}
+std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t> client_id, const std::string& filename,const size_t original_file_size, const std::vector<uint8_t>& file_content, const size_t packet_num) 
+{
+    std::vector<uint8_t> payload;
+    //add file_content size to payload in 4 bytes
+    pushBytes(payload, file_content.size(), 4);
+
+    //add original file size to payload in 4 bytes
+    pushBytes(payload, original_file_size, 4);
+
+    //add packet number to payload in 2 bytes
+    pushBytes(payload, packet_num, 2);
+
+    //add number of packets to payload in 2 bytes
+    pushBytes(payload, (file_content.size() / MAX_FILE_PACKET_SIZE) + 1, 2);
+
+    payload.insert(payload.end(), filename.begin(), filename.end());
+    
+    // add pad to file name for 255 bytes
+    payload.insert(payload.end(), 255 - filename.size(), 0);
+
+    //add the packet_num content use the MAX_FILE_PACKET_SIZE as the packet size
+    size_t start = (packet_num-1) * MAX_FILE_PACKET_SIZE;
+    size_t end = std::min(start + MAX_FILE_PACKET_SIZE, file_content.size());
+    payload.insert(payload.end(), file_content.begin() + start, file_content.begin() + end);
+    
+    //if the packet the last packet, pad the content to MAX_FILE_PACKET_SIZE
+    if (end < start + MAX_FILE_PACKET_SIZE)
+    {
+		payload.insert(payload.end(), MAX_FILE_PACKET_SIZE - (end - start), 0);
+	}
+    return create_request(828, client_id,3, payload);
+}
 //
 //std::vector<uint8_t> Protocol::create_crc_ok_request(const std::string& client_id, const std::string& filename) {
 //    std::vector<uint8_t> payload(filename.begin(), filename.end());

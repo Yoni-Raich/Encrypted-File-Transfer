@@ -3,7 +3,7 @@ import struct
 import threading
 from Protocol import Protocol
 from RequestHandler import RequestHandler
-from RequestStructur import RequestStructure
+from RequestStructure import RequestStructure
 
 REQUEST_HEADER_SIZE = 23
 RESPONSE_HEADER_SIZE = 7
@@ -46,7 +46,7 @@ class Server:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.protocol = Protocol()
-        self.requestHandler = None
+        self.requestHandler = RequestHandler()
         self.request_structure = None
 
     def start(self):
@@ -65,7 +65,7 @@ class Server:
                     break
 
                 self.receive_request = self.protocol.parse_request(request)
-                self.requestHandler = RequestHandler(self.receive_request)
+                self.requestHandler.new_request(self.receive_request)
                 response = self.requestHandler.create_response()
                 send_response(client_socket, response)
 

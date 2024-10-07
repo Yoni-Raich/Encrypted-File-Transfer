@@ -3,13 +3,17 @@ from Crypto.PublicKey import RSA
 from Protocol import Protocol
 from CryptoManager import CryptoManager
 from ClientManager import ClientManager
+from RequestStructure import RequestStructure
 
 
 class RequestHandler:
-    def __init__(self, receive_request):
+    def __init__(self):
         self.protocol = Protocol()
         self.client_manager = ClientManager()
         self.crypto_manager = None
+        self.receive_request = None
+
+    def new_request(self, receive_request: RequestStructure):
         self.receive_request = receive_request
 
     def create_response(self):
@@ -67,6 +71,7 @@ class RequestHandler:
 
     def handle_file_transfer(self, client_id, payload):
         file_structure = self.receive_request.get_file_structure()
+        num_of_packets = file_structure['total_packet']
         
         client = self.client_manager.get_client(client_id)
         if client:

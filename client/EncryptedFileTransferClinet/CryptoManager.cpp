@@ -9,6 +9,8 @@
 #include <cryptopp/crc.h>
 #include <cryptopp/base64.h>
 #include "CryptoManager.h"
+#include <cryptopp/files.h>
+#include <cryptopp/cryptlib.h>
 
 using namespace CryptoPP;
 
@@ -38,40 +40,57 @@ void CryptoManager::generateRSAKeys()
         rng.GenerateBlock(aesKey, aesKey.size());
     }
 
-    std::string CryptoManager::encryptAES(const std::string& data) {
-        AutoSeededRandomPool rng;
+    std::vector<uint8_t> CryptoManager::encryptAES(const std::vector<uint8_t>& data) {
+        // Generate IV
+        AutoSeededRandomPool prng;
         byte iv[AES::BLOCKSIZE];
-        rng.GenerateBlock(iv, sizeof(iv));
+        prng.GenerateBlock(iv, AES::BLOCKSIZE);
 
+        // Set up encryption objects
+        CBC_Mode<AES>::Encryption encryptor;
+        encryptor.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
+
+        // Encrypt
         std::string ciphertext;
-        CBC_Mode<AES>::Encryption encryption;
-        encryption.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
-
-        StringSource ss(data, true,
-            new StreamTransformationFilter(encryption,
+        StringSource(
+            reinterpret_cast<const byte*>(data.data()), data.size(), true,
+            new StreamTransformationFilter(encryptor,
                 new StringSink(ciphertext)
             )
         );
 
-        return std::string(reinterpret_cast<char*>(iv), AES::BLOCKSIZE) + ciphertext;
+        // Prepare result: IV + Ciphertext
+        std::vector<uint8_t> result(iv, iv + AES::BLOCKSIZE);
+        result.insert(result.end(), ciphertext.begin(), ciphertext.end());
+
+        return result;
     }
 
-    std::string CryptoManager::decryptAES(const std::string& data) {
+    std::string CryptoManager::decryptAES(const std::vector<uint8_t>& data) {
+        if (data.size() < AES::BLOCKSIZE) {
+            throw std::invalid_argument("Input data is too short");
+        }
+
+        // Extract IV
         byte iv[AES::BLOCKSIZE];
-        memcpy(iv, data.data(), AES::BLOCKSIZE);
+        std::copy(data.begin(), data.begin() + AES::BLOCKSIZE, iv);
 
-        std::string ciphertext = data.substr(AES::BLOCKSIZE);
+        // Set up decryption objects
+        CBC_Mode<AES>::Decryption decryptor;
+        decryptor.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
+
+        // Decrypt
         std::string plaintext;
-
-        CBC_Mode<AES>::Decryption decryption;
-        decryption.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
-
-        StringSource ss(ciphertext, true,
-            new StreamTransformationFilter(decryption,
+        StringSource(
+            reinterpret_cast<const byte*>(data.data()) + AES::BLOCKSIZE, 
+            data.size() - AES::BLOCKSIZE, 
+            true,
+            new StreamTransformationFilter(decryptor,
                 new StringSink(plaintext)
             )
         );
 
+        // Convert result to vector<uint8_t>
         return plaintext;
     }
 

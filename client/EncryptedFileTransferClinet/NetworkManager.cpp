@@ -22,16 +22,16 @@ void NetworkManager::disconnect()
     }
 }
 
-void NetworkManager::sendData(const std::string data)
-{
-    boost::asio::write(m_socket, boost::asio::buffer(data, MAX_LENGTH));
-}
-
-void NetworkManager::sendData(const std::vector<uint8_t>& data) {
-	uint32_t message_length = htonl(data.size());
-	//boost::asio::write(m_socket, boost::asio::buffer(&message_length, sizeof(message_length)));        
-	boost::asio::write(m_socket, boost::asio::buffer(data));
-}
+//void NetworkManager::sendData(const std::string data)
+//{
+//    boost::asio::write(m_socket, boost::asio::buffer(data, MAX_LENGTH));
+//}
+//
+//void NetworkManager::sendData(const std::vector<uint8_t>& data) {
+//	uint32_t message_length = htonl(data.size());
+//	//boost::asio::write(m_socket, boost::asio::buffer(&message_length, sizeof(message_length)));        
+//	boost::asio::write(m_socket, boost::asio::buffer(data));
+//}
 
 
 std::string NetworkManager::receiveData() {

@@ -135,6 +135,7 @@
     <ClCompile Include="cksum_new.cpp" />
     <ClCompile Include="Client.cpp" />
     <ClCompile Include="CryptoManager.cpp" />
+    <ClCompile Include="FileManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="FileHandler.cpp" />
     <ClCompile Include="NetworkManager.cpp" />
@@ -148,6 +149,7 @@
     <ClInclude Include="Client.h" />
     <ClInclude Include="CryptoManager.h" />
     <ClInclude Include="FileHandler.h" />
+    <ClInclude Include="FileManager.h" />
     <ClInclude Include="NetworkManager.h" />
     <ClInclude Include="Protocol.h" />
   </ItemGroup>

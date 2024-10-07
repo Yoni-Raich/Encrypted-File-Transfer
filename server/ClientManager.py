@@ -18,7 +18,7 @@ class ClientManager:
 
     def update_client(self, client_id, **kwargs):
         if client_id in self.clients:
-            self.clients[client_id.decode('utf-8')].update(kwargs)
+            self.clients[client_id].update(kwargs)
             return True
         return False
 
@@ -33,11 +33,6 @@ class ClientManager:
     
 if __name__ == "__main__":
     my_uuid = uuid.uuid4().hex
-
-    # המרת ה-UUID ל-16 bytes
     uuid_bytes = my_uuid.bytes
-
-    # המרת ה-UUID מפורמט bytes לפורמט של מחרוזת
     uuid_str = str(uuid.UUID(bytes=uuid_bytes))
-
     print(uuid_str)

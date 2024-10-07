@@ -3,6 +3,7 @@ import os
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 from cksum import memcrc as get_CRC
 class CryptoManager:
     def __init__(self, public_key=None):
@@ -29,15 +30,23 @@ class CryptoManager:
         self.public_key = key.publickey()
 
     def encrypt_aes(self, data):
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        
+        padded_data = pad(data, AES.block_size)
         cipher_aes = AES.new(self.aes_key, AES.MODE_CBC)
-        ciphertext = cipher_aes.encrypt(data)
+        ciphertext = cipher_aes.encrypt(padded_data)
+        
         return cipher_aes.iv + ciphertext
 
-    def decrypt_aes(self, data):
-        iv = data[:16]
-        ciphertext = data[16:]
+    def decrypt_aes(self, enc_data):
+        iv = enc_data[:AES.block_size]
+        ciphertext = enc_data[AES.block_size:]
+        
         cipher_aes = AES.new(self.aes_key, AES.MODE_CBC, iv)
-        plaintext = cipher_aes.decrypt(ciphertext)
+        padded_plaintext = cipher_aes.decrypt(ciphertext)
+        plaintext = unpad(padded_plaintext, AES.block_size)
+        
         return plaintext
 
     def encrypt_rsa(self, data):
@@ -69,6 +78,9 @@ if __name__ == "__main__":
     crypto_manager = CryptoManager()
     crypto_manager.generate_rsa_keys()
     crypto_manager.generate_aes_key()
-    enc_data = crypto_manager.encrypt_rsa("Hello")
-    dec_data = crypto_manager.decrypt_rsa(enc_data)
-    print(dec_data.decode('utf'))
+    data = 'Hello my name is Yoni'
+
+    enc_data = crypto_manager.encrypt_aes(data)
+    print(enc_data)
+    dec_data = crypto_manager.decrypt_aes(enc_data)
+    print(dec_data)
