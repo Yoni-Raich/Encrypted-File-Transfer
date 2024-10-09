@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include "cksum_new.h"
 
 Client::Client(const std::string& server_ip, const std::string& server_port)
     : m_network_manager(server_ip, server_port) {
@@ -25,11 +26,8 @@ void Client::run() {
             std::cerr << "Failed to perform key exchange" << std::endl;
             return;
         }
-        //print the current folder path
+       
         send_file("C:\\final_project\\client\\EncryptedFileTransferClinet\\x64\\Debug\\test.txt");
-       /* while (true) {
-            handle_server_response();
-        }*/
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
@@ -136,39 +134,40 @@ bool Client::perform_key_exchange() {
     return false;
 }
 
-//void Client::handle_server_response() {
-//    std::vector<uint8_t> response = m_network_manager.receiveDataBytes();
-//    uint8_t version;
-//    uint16_t code;
-//    std::vector<uint8_t> payload;
-//    std::tie(version, code, payload) = m_protocol.parse_response(response);
-//
-//    switch (code) {
-//        case 1603: // CRC
-//            handle_crc_response(code, payload);
-//            break;
-//        case 1604: // File transfer approved
-//            std::cout << "File transfer approved" << std::endl;
-//            break;
-//        case 1605: // Reconnect approved
-//            std::cout << "Reconnect approved" << std::endl;
-//            break;
-//        case 1606: // Reconnect denied
-//            std::cerr << "Reconnect denied" << std::endl;
-//            break;
-//        default:
-//            std::cerr << "Unknown response code: " << code << std::endl;
-//    }
-//}
+void Client::handle_server_response(std::string filePath) {
+    std::vector<uint8_t> response = m_network_manager.receiveResponse();
+    uint8_t version;
+    uint16_t code;
+    std::vector<uint8_t> payload;
+    std::tie(version, code, payload) = m_protocol.parse_response(response);
 
-void Client::send_file(const std::string& filename) 
+    switch (code) {
+        case 1603: // CRC
+            handle_crc_response(filePath, payload);
+            break;
+        case 1604: // File transfer approved
+            std::cout << "File transfer approved" << std::endl;
+            break;
+        case 1605: // Reconnect approved
+            std::cout << "Reconnect approved" << std::endl;
+            break;
+        case 1606: // Reconnect denied
+            std::cerr << "Reconnect denied" << std::endl;
+            break;
+        default:
+            std::cerr << "Unknown response code: " << code << std::endl;
+    }
+}
+
+void Client::send_file(const std::string& filePath) 
 {
-    std::ifstream file(filename, std::ios::binary);
+    std::ifstream file(filePath, std::ios::binary);
     if (!file) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
+        std::cerr << "Failed to open file: " << filePath << std::endl;
         return;
     }
-
+	std::filesystem::path filePathsys = filePath;
+	std::string filename = filePathsys.filename().string();
     std::vector<uint8_t> file_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     file.close();
 
@@ -178,30 +177,38 @@ void Client::send_file(const std::string& filename)
     for (size_t i = 1; i <= totPackeg; i++) 
     {
 		std::vector<uint8_t> request = m_protocol.create_file_request(bit_client_id, filename, file_content.size(),encrypted_content, i);
-		m_network_manager.sendRequest(request);
+        
+        i == 1 
+            ? m_network_manager.sendRequest(request) 
+            : m_network_manager.sebdFilePacket(request, m_protocol.FILE_PACKET_SIZE);
 	}
-  
-    
+
+	handle_server_response(filePath);
 }
-//
-//void Client::handle_crc_response(uint16_t code, const std::vector<uint8_t>& payload) {
-//    std::string filename(payload.begin(), payload.begin() + 255);
-//    uint32_t crc = *reinterpret_cast<const uint32_t*>(&payload[255]);
-//
-//    if (m_crypto_manager.verify_crc(filename, crc)) {
-//        std::vector<uint8_t> request = m_protocol.create_crc_ok_request(m_client_id, filename);
-//        m_network_manager.sendData(request);
-//    } else {
-//        static int retry_count = 0;
-//        if (retry_count < 3) {
-//            std::vector<uint8_t> request = m_protocol.create_crc_retry_request(m_client_id, filename);
-//            m_network_manager.sendData(request);
-//            retry_count++;
-//            send_file(filename);
-//        } else {
-//            std::vector<uint8_t> request = m_protocol.create_crc_fail_request(m_client_id, filename);
-//            m_network_manager.sendData(request);
-//            retry_count = 0;
-//        }
-//    }
-//}
+
+void Client::handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload) {
+    std::string filename(payload.begin()+20, payload.begin() + 255);
+	//extract the value from the last 4 bytes of the payload
+	int payloadSize = payload.size();
+    uint32_t crc = (payload[payloadSize - 4] << 24) | (payload[payloadSize - 3] << 16) 
+        | (payload[payloadSize - 2] << 8) | payload[payloadSize - 1];
+    std::vector<uint8_t> bit_client_id = uuidStringToBinary(m_client_id);
+    uint32_t current_crc = readfile(filePath);
+	std::cout << "CRC: " << current_crc << std::endl;
+    if (current_crc == crc) {
+        std::vector<uint8_t> request = m_protocol.create_crc_request(900, bit_client_id, filename);
+        m_network_manager.sendRequest(request);
+    } else {
+        static int retry_count = 0;
+        if (retry_count < 3) {
+            std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
+            m_network_manager.sendRequest(request);
+            retry_count++;
+            send_file(filename);
+        } else {
+            std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
+            m_network_manager.sendRequest(request);
+            retry_count = 0;
+        }
+    }
+}

@@ -11,7 +11,7 @@
 #include <iterator>
 #include <filesystem>
 #include <string>
-
+#include <cstdint>
 // Declaration of the CRC table
 extern const uint_fast32_t crctab[8][256];
 
@@ -20,6 +20,6 @@ extern const uint_fast32_t crctab[8][256];
 
 // Function declarations
 unsigned long memcrc(char* b, size_t n);
-std::string readfile(std::string fname);
+unsigned long readfile(std::string fname);
 
 #endif // CKSUM_NEW_H

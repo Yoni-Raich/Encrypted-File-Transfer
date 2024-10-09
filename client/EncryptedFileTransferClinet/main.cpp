@@ -3,13 +3,14 @@
 #include "CryptoManager.h"
 #include <iostream>
 #include "Client.h"
+#include "cksum_new.h"
+
 
 
 int main(int argc, char* argv[]) {
 
     std::string server_ip = "localhost";
     std::string server_port = "1234";
-
     try 
     {
         Client client(server_ip, server_port);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cksum_new.h"
 #include "Protocol.h"
 #include "NetworkManager.h"
 #include "CryptoManager.h"
@@ -22,7 +23,7 @@ private:
 
     bool register_to_server();
     bool perform_key_exchange();
-    void handle_server_response();
+    void handle_server_response(std::string filePath);
     void send_file(const std::string& filename);
-    //void handle_crc_response(uint16_t code, const std::vector<uint8_t>& payload);
+    void handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload);
 };

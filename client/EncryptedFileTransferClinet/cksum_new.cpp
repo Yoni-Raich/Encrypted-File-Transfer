@@ -455,24 +455,24 @@ unsigned long memcrc(char * b, size_t n) {
 
 }
 
-//std::string readfile(std::string fname) 
-//{
-//    if (std::filesystem::exists(fname)) 
-//    {
-//        std::fi
-//        std::filesystem::path fpath = fname;
-//        std::ifstream f1(fname.c_str(), std::ios::binary);
-//        
-//        size_t size = std::filesystem::file_size(fpath);
-//        char* b = new char[size];
-//        f1.seekg(0, std::ios::beg);
-//        f1.read(b, size);
-//        std::cout << "tellg returns" << f1.tellg() << std::endl;
-//        
-//        return std::to_string(memcrc(b, size)) + '\t' + std::to_string(size) + '\t' + fname;
-//    }
-//    else {
-//        std::cerr << "Cannot open input file " << fname << std::endl;
-//        return "";
-//    }
-//}
+unsigned long readfile(std::string fname)
+{
+    if (std::filesystem::exists(fname)) 
+    {
+        std::filesystem::path fpath = fname;
+        std::ifstream f1(fname.c_str(), std::ios::binary);
+
+        size_t size = std::filesystem::file_size(fpath);
+        char* b = new char[size];
+        f1.seekg(0, std::ios::beg);
+        f1.read(b, size);
+        std::cout << "tellg returns" << f1.tellg() << std::endl;
+
+        return memcrc(b, size);
+    }
+    else 
+    {
+        std::cerr << "Cannot open input file " << fname << std::endl;
+        return -1;
+    }
+}

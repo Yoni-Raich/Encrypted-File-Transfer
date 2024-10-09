@@ -81,6 +81,16 @@ void NetworkManager::sendRequest(const std::vector<uint8_t>& request) {
     }
 }
 
+void NetworkManager::sebdFilePacket(const std::vector<uint8_t>& request, const size_t packetSize)
+{
+    if (request.size() < packetSize)
+    {
+		throw std::runtime_error("Invalid file packet size");
+	}
+
+    boost::asio::write(m_socket, boost::asio::buffer(request.data(), packetSize));
+}
+
 std::vector<uint8_t> NetworkManager::receiveResponse() {
     std::vector<uint8_t> header(RESPONSE_HEADER_SIZE);
     boost::asio::read(m_socket, boost::asio::buffer(header));

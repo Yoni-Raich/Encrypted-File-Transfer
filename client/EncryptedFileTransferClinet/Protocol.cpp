@@ -16,9 +16,9 @@ const std::map<uint16_t, uint32_t> PAYLOAD_SIZES = {
     {826, 160 + 255},   // Send Public Key
     {827, 255},   // Reconnect
     {828, 1291},   // Send File
-    {900, 4},     // CRC OK
-    {901, 4},     // CRC Retry
-    {902, 4}      // CRC Fail
+    {900, 255},     // CRC OK
+    {901, 255},     // CRC Retry
+    {902, 255}      // CRC Fail
 };
 
 
@@ -126,22 +126,14 @@ std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t> cl
     {
 		payload.insert(payload.end(), MAX_FILE_PACKET_SIZE - (end - start), 0);
 	}
-    return create_request(828, client_id,3, payload);
+    if (packet_num == 1)
+        return create_request(828, client_id,3, payload);
+    
+    return payload;
 }
-//
-//std::vector<uint8_t> Protocol::create_crc_ok_request(const std::string& client_id, const std::string& filename) {
-//    std::vector<uint8_t> payload(filename.begin(), filename.end());
-//    return create_request(1028, client_id, payload);
-//}
-//
-//std::vector<uint8_t> Protocol::create_crc_retry_request(const std::string& client_id, const std::string& filename) {
-//    std::vector<uint8_t> payload(filename.begin(), filename.end());
-//    return create_request(1029, client_id, payload);
-//}
-//
-//std::vector<uint8_t> Protocol::create_crc_fail_request(const std::string& client_id, const std::string& filename) {
-//    std::vector<uint8_t> payload(filename.begin(), filename.end());
-//    return create_request(1030, client_id, payload);
-//}
-//
-//// ... You can add more helper functions for other message types if needed ...
+
+std::vector<uint8_t> Protocol::create_crc_request(const int code, const std::vector<uint8_t> client_id, const std::string& filename) {
+    std::vector<uint8_t> payload(filename.begin(), filename.end());
+    return create_request(code, client_id, 3, payload);
+}
+

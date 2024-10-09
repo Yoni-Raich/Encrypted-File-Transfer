@@ -66,7 +66,7 @@ class Server:
 
                 self.receive_request = self.protocol.parse_request(request)
                 self.requestHandler.new_request(self.receive_request)
-                response = self.requestHandler.create_response()
+                response = self.requestHandler.create_response(client_socket)
                 send_response(client_socket, response)
 
             except Exception as e:

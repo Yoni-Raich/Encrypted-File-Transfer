@@ -5,6 +5,7 @@
 #include <vector>
 
 
+
 class CryptoManager {
 public:
     static const size_t AES_KEY_SIZE = 32; // 256 bits
