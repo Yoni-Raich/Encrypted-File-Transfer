@@ -41,3 +41,4 @@ bld/
 .history/
 client/EncryptedFileTransferClinet/packages/
 server/__pycache__/
+/client/EncryptedFileTransferClinet/vcpkg_installed

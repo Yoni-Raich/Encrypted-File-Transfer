@@ -1,24 +1,33 @@
-/*#pragma once
-
-#include <vector>
-#include <memory>
+#pragma once
+#include <string>
 #include <cryptopp/rsa.h>
+#include <cryptopp/secblock.h>
+#include <vector>
+
+
 
 class CryptoManager {
 public:
-    CryptoManager(const std::vector<uint8_t>& public_key = std::vector<uint8_t>());
+    static const size_t AES_KEY_SIZE = 32; // 256 bits
+    
+    CryptoManager();
 
-    std::vector<uint8_t> get_encrypted_aes_key(const std::vector<uint8_t>& public_key = std::vector<uint8_t>());
-    void generate_rsa_keys();
-    std::vector<uint8_t> encrypt_aes(const std::vector<uint8_t>& data);
-    std::vector<uint8_t> decrypt_aes(const std::vector<uint8_t>& data);
-    std::vector<uint8_t> encrypt_rsa(const std::vector<uint8_t>& data);
-    std::vector<uint8_t> decrypt_rsa(const std::vector<uint8_t>& encrypted_data);
-    void generate_aes_key();
-    std::vector<uint8_t> get_CRC(const std::vector<uint8_t>& data, bool decrypt = false);
+    void generateRSAKeys();
+    std::string getEncryptedAESKey();
+    void generateAESKey();
+    std::vector<uint8_t> encryptAES(const std::vector<uint8_t>& data);
+    std::string decryptAES(const std::vector<uint8_t>& data);
+    std::string encryptRSA(const std::string plainText);
+    std::string decryptRSA(const std::vector<uint8_t>& encryptedData);
+    std::string getCRC(const std::string& data, bool decrypt = false);
+    std::vector<uint8_t> getPublicKey();
+
+    CryptoPP::RSA::PrivateKey getPrivateKey();
+    CryptoPP::SecByteBlock getAESKey();
+    void setAESKey(const std::string& keyString);
 
 private:
-    std::string m_public_key;
-    std::string m_private_key;
-    std::string m_aes_key;
-};*/
+    CryptoPP::RSA::PrivateKey privateKey;
+    CryptoPP::RSA::PublicKey publicKey;
+    CryptoPP::SecByteBlock aesKey;
+};

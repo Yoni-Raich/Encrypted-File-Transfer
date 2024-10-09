@@ -1,11 +1,4 @@
-#include <iostream>
-#include <fstream>
-#include <ostream>
-#include <cstdio>
-#include <vector>
-#include <iterator>
-#include <filesystem>
-#include <string>
+#include "cksum_new.h"
 
 
 uint_fast32_t const crctab[8][256] = {
@@ -443,8 +436,6 @@ uint_fast32_t const crctab[8][256] = {
 },
 };
 
-#define UNSIGNED(n) (n & 0xffffffff)
-
 unsigned long memcrc(char * b, size_t n) {
     unsigned int v = 0, c = 0;
     unsigned long s = 0;
@@ -464,27 +455,24 @@ unsigned long memcrc(char * b, size_t n) {
 
 }
 
-std::string readfile(std::string fname) {
-    if (std::filesystem::exists(fname)) {
+unsigned long readfile(std::string fname)
+{
+    if (std::filesystem::exists(fname)) 
+    {
         std::filesystem::path fpath = fname;
         std::ifstream f1(fname.c_str(), std::ios::binary);
-        
+
         size_t size = std::filesystem::file_size(fpath);
         char* b = new char[size];
         f1.seekg(0, std::ios::beg);
         f1.read(b, size);
         std::cout << "tellg returns" << f1.tellg() << std::endl;
-        
-        return std::to_string(memcrc(b, size)) + '\t' + std::to_string(size) + '\t' + fname;
+
+        return memcrc(b, size);
     }
-    else {
+    else 
+    {
         std::cerr << "Cannot open input file " << fname << std::endl;
-        return "";
+        return -1;
     }
-}
-
-
-int main(int argc, char** argv) {
-    std::cout << readfile(argv[1]) << std::endl;
-    exit(0);
 }

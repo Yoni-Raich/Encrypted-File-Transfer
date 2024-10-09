@@ -1,15 +1,18 @@
+import os
 import uuid
 
 class ClientManager:
+    root_clients_folder = "clients"
+
     def __init__(self):
         self.clients = {}
 
     def add_client(self, name):
+        if any(client['name'] == name for client in self.clients.values()):
+            raise ValueError("Username already exists")
+        
         client_id = uuid.uuid4()
-        if client_id not in self.clients:
-            self.clients[client_id] = {'name': name}
-        else:
-            raise ValueError("Client ID already exists")
+        self.clients[str(client_id)] = {'name': name}
         return client_id.bytes
 
     def get_client(self, client_id):
@@ -30,10 +33,33 @@ class ClientManager:
     def client_exists(self, client_id):
         return client_id in self.clients
     
+    def get_client_folder(self, client_id):
+        folder_name = self.clients[client_id]['name']
+        folder_path = os.path.join(self.root_clients_folder, folder_name)
+        self.clients[client_id]['folder_path'] = folder_path
+        return folder_path
+    
+    def save_client_file(self, client_id, filename, content):
+        folder_path = self.get_client_folder(client_id)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+
+        file_path = os.path.join(folder_path, filename)
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        if 'files' in self.clients[client_id]:
+            self.clients[client_id]['files'].append(file_path)
+        else:
+            self.clients[client_id]['files'] = [file_path]
+        return file_path   
+        
+    
 if __name__ == "__main__":
-    client = ClientManager()
-    print(client.clients)
-    client_id = client.add_client(0, 'test')
-   
-    print(client.clients)
+    files = {}
+    list_files = ['file1', 'file2', 'file3']
+    list_files.append('file4')
+    print(list_files)
+    files['folder'] = list_files
+    files['folder'].append('file5')
+    print(files)
 

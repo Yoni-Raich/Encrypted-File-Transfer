@@ -1,17 +1,43 @@
 import socket
+import struct
 import threading
 from Protocol import Protocol
 from RequestHandler import RequestHandler
+from RequestStructure import RequestStructure
 
+REQUEST_HEADER_SIZE = 23
+RESPONSE_HEADER_SIZE = 7
 
-def receive_full_message(client_socket, buffer_size=1024):
-    data = b''
-    while True:
-        part = client_socket.recv(buffer_size)
-        data += part
-        if len(part) < buffer_size:
-            break
-    return data
+def receive_request(client_socket):
+    # Receive the fixed-size header
+    header = client_socket.recv(REQUEST_HEADER_SIZE)
+    if len(header) != REQUEST_HEADER_SIZE:
+        return None
+
+    # Extract payload size from the header
+    payload_size = struct.unpack('!I', header[19:23])[0]
+
+    # Receive the payload
+    payload = b''
+    remaining = payload_size
+    while remaining > 0:
+        chunk = client_socket.recv(min(remaining, 4096))
+        if not chunk:
+            return None
+        payload += chunk
+        remaining -= len(chunk)
+
+    return header + payload
+
+def send_response(client_socket, response):
+    if len(response) < RESPONSE_HEADER_SIZE:
+        raise ValueError("Invalid response size")
+
+    # Send the fixed-size header
+    client_socket.sendall(response[:RESPONSE_HEADER_SIZE])
+
+    # Send the payload
+    client_socket.sendall(response[RESPONSE_HEADER_SIZE:])
 
 class Server:
     def __init__(self, host='localhost', port=1234):
@@ -21,6 +47,7 @@ class Server:
         self.socket.bind((self.host, self.port))
         self.protocol = Protocol()
         self.requestHandler = RequestHandler()
+        self.request_structure = None
 
     def start(self):
         self.socket.listen()
@@ -33,36 +60,21 @@ class Server:
     def handle_client(self, client_socket):
         while True:
             try:
-                data = receive_full_message(client_socket)
-                print(data)
-                if not data:
+                request = receive_request(client_socket)
+                if not request:
                     break
 
-                client_id, version, code, payload = self.protocol.parse_request(data)
-                #print(f"client_id: {client_id}, version: {version}, code: {code}, \npayload: {payload}\n")
-                if code == 825:  # Register request
-                    response = self.requestHandler.handle_register(client_id, payload)
-                elif code == 826:  # Send public key
-                    response = self.requestHandler.handle_public_key(client_id, payload)
-                elif code == 827:  # Reconnect
-                    response = self.requestHandler.handle_reconnect(client_id, payload)
-                elif code == 828:  # Send file
-                    response = self.requestHandler.handle_file_transfer(client_id, payload)
-                elif code in [900, 901, 902]:  # CRC responses
-                    response = self.requestHandler.handle_crc_response(client_id, code, payload)
-                else:
-                    response = self.protocol.create_response(1607, client_id)  # General error
-
-                client_socket.send(response)
+                self.receive_request = self.protocol.parse_request(request)
+                self.requestHandler.new_request(self.receive_request)
+                response = self.requestHandler.create_response(client_socket)
+                send_response(client_socket, response)
 
             except Exception as e:
                 print(f"Error handling client: {e}")
                 break
 
         client_socket.close()
-    
-    
-    
+
 if __name__ == "__main__":
     server = Server()
     server.start()

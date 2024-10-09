@@ -7,73 +7,97 @@
 #include <cryptopp/filters.h>
 #include <cryptopp/hex.h>
 #include <cryptopp/crc.h>
+#include <cryptopp/base64.h>
+#include "CryptoManager.h"
+#include <cryptopp/files.h>
+#include <cryptopp/cryptlib.h>
+
 
 using namespace CryptoPP;
 
-class CryptoManager {
-public:
-    CryptoManager() : aesKey(AES::DEFAULT_KEYLENGTH) {}
+// Constructor
+CryptoManager::CryptoManager() : aesKey(AES_KEY_SIZE) {} // Changed to 32 bytes
 
-    void generateRSAKeys() 
-    {
+void CryptoManager::generateRSAKeys()
+{
         AutoSeededRandomPool rng;
         InvertibleRSAFunction params;
         params.GenerateRandomWithKeySize(rng, 1024);
 
         privateKey = RSA::PrivateKey(params);
         publicKey = RSA::PublicKey(params);
-    }
+}
 
-    std::string getEncryptedAESKey() 
-    {
-        return encryptRSA(aesKey);
-    }
+    //std::string CryptoManager::getEncryptedAESKey()
+    //{
+    //    return encryptRSA(aesKey);
+    //}
 
     //TODO need to remove this function
-    void generateAESKey() 
+    void CryptoManager::generateAESKey()
     {
         AutoSeededRandomPool rng;
+        aesKey.resize(AES_KEY_SIZE); // Ensure the key is 32 bytes
         rng.GenerateBlock(aesKey, aesKey.size());
     }
 
-    std::string encryptAES(const std::string& data) {
-        AutoSeededRandomPool rng;
+    std::vector<uint8_t> CryptoManager::encryptAES(const std::vector<uint8_t>& data) {
+        // Generate IV
+        AutoSeededRandomPool prng;
         byte iv[AES::BLOCKSIZE];
-        rng.GenerateBlock(iv, sizeof(iv));
+        prng.GenerateBlock(iv, AES::BLOCKSIZE);
 
+        // Set up encryption objects
+        CBC_Mode<AES>::Encryption encryptor;
+        encryptor.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
+
+        // Encrypt
         std::string ciphertext;
-        CBC_Mode<AES>::Encryption encryption;
-        encryption.SetKeyWithIV(aesKey, aesKey.size(), iv);
-
-        StringSource ss(data, true,
-            new StreamTransformationFilter(encryption,
+        StringSource(
+            reinterpret_cast<const byte*>(data.data()), data.size(), true,
+            new StreamTransformationFilter(encryptor,
                 new StringSink(ciphertext)
             )
         );
 
-        return std::string(reinterpret_cast<char*>(iv), AES::BLOCKSIZE) + ciphertext;
+        // Prepare result: IV + Ciphertext
+        std::vector<uint8_t> result(iv, iv + AES::BLOCKSIZE);
+        result.insert(result.end(), ciphertext.begin(), ciphertext.end());
+
+        return result;
     }
 
-    std::string decryptAES(const std::string& data) {
+    std::string CryptoManager::decryptAES(const std::vector<uint8_t>& data) {
+        if (data.size() < AES::BLOCKSIZE) {
+            throw std::invalid_argument("Input data is too short");
+        }
+
+        // Extract IV
         byte iv[AES::BLOCKSIZE];
-        memcpy(iv, data.data(), AES::BLOCKSIZE);
+        std::copy(data.begin(), data.begin() + AES::BLOCKSIZE, iv);
 
-        std::string ciphertext = data.substr(AES::BLOCKSIZE);
+        // Set up decryption objects
+        CBC_Mode<AES>::Decryption decryptor;
+        decryptor.SetKeyWithIV(aesKey, AES_KEY_SIZE, iv);
+
+        // Decrypt
         std::string plaintext;
-
-        CBC_Mode<AES>::Decryption decryption;
-        decryption.SetKeyWithIV(aesKey, aesKey.size(), iv);
-
-        StringSource ss(ciphertext, true,
-            new StreamTransformationFilter(decryption,
+        StringSource(
+            reinterpret_cast<const byte*>(data.data()) + AES::BLOCKSIZE, 
+            data.size() - AES::BLOCKSIZE, 
+            true,
+            new StreamTransformationFilter(decryptor,
                 new StringSink(plaintext)
             )
         );
 
+        // Convert result to vector<uint8_t>
         return plaintext;
     }
 
-    std::string encryptRSA(const SecByteBlock& data) {
+    std::string CryptoManager::encryptRSA(const std::string plainText)
+    {
+        SecByteBlock data(reinterpret_cast<const byte*>(plainText.data()), plainText.size());
         AutoSeededRandomPool rng;
         std::string ciphertext;
 
@@ -87,12 +111,12 @@ public:
         return ciphertext;
     }
 
-    std::string decryptRSA(const std::string& encryptedData) {
+    std::string CryptoManager::decryptRSA(const std::vector<uint8_t>& encryptedData) {
         AutoSeededRandomPool rng;
         std::string decryptedData;
 
         RSAES_OAEP_SHA_Decryptor decryptor(privateKey);
-        StringSource ss(encryptedData, true,
+        StringSource ss(reinterpret_cast<const byte*>(encryptedData.data()), encryptedData.size(), true,
             new PK_DecryptorFilter(rng, decryptor,
                 new StringSink(decryptedData)
             )
@@ -101,7 +125,7 @@ public:
         return decryptedData;
     }
 
-    std::string getCRC(const std::string& data, bool decrypt = false) {
+    /*std::string CryptoManager::getCRC(const std::string& data, bool decrypt = false) {
         std::string processedData = data;
         if (decrypt) {
             processedData = decryptAES(data);
@@ -118,29 +142,41 @@ public:
         );
 
         return hash;
-    }
+    }*/
     // get the keys
-    RSA::PrivateKey getPrivateKey() {
+    RSA::PrivateKey CryptoManager::getPrivateKey() {
 		return privateKey;
 	}
 
-    RSA::PublicKey getPublicKey() {
-		return publicKey;
-	}
+    std::vector<uint8_t> CryptoManager::getPublicKey() {
+        ByteQueue queue;
+        publicKey.DEREncodePublicKey(queue);
 
-    SecByteBlock getAESKey() {
+        std::vector<uint8_t> publicKeyVec(queue.CurrentSize());
+        queue.Get(reinterpret_cast<byte*>(&publicKeyVec[0]), publicKeyVec.size());
+
+        return publicKeyVec;
+    }
+
+    SecByteBlock CryptoManager::getAESKey() {
 		return aesKey;
 	}
 
-    void setAESKey(const SecByteBlock& key) {
-		aesKey = key;
-	}
+    void CryptoManager::setAESKey(const std::string& keyString) 
+    {
+        SecByteBlock data(reinterpret_cast<const byte*>(keyString.data()), keyString.size());
+        if (keyString.length() != AES_KEY_SIZE) {
+            throw std::invalid_argument("Invalid AES key length");
+        }
 
-private:
-    RSA::PrivateKey privateKey;
-    RSA::PublicKey publicKey;
-    SecByteBlock aesKey;
-};
+        aesKey = data;
+    }
+
+    /*void setAESKey(const SecByteBlock& key) {
+        CryptoManager::aesKey = key;
+	}*/
+
+
 
 //int main() {
 //    CryptoManager cryptoManager;

@@ -87,4 +87,4 @@ def readfile(fname):
 
 
 if __name__ == '__main__':
-    print (readfile(sys.argv[-1]))
+    print (memcrc('Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni Yoni '.encode('utf-8')))

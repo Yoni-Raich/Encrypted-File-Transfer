@@ -1,6 +1,7 @@
 import struct
-from CryptoManager import CryptoManager
-from ClientManager import ClientManager
+import uuid
+
+from RequestStructure import RequestStructure
 
 class Protocol:
     CLIENT_ID_LENGTH = 16
@@ -8,35 +9,59 @@ class Protocol:
     CODE_LENGTH = 2
     PAYLOAD_SIZE_LENGTH = 4
 
+    # Response codes
+    REGISTER_SUCCESS = 1600
+    REGISTER_FAIL = 1601
+    AES_KEY_SENT = 1602
+    FILE_RECEIVED_WITH_CRC = 1603
+    THANK_YOU = 1604
+    RECONNECT_APPROVED = 1605
+    RECONNECT_DENIED = 1606
+    GENERAL_ERROR = 1607
+
+    # Other constants
+    VERSION = 3
+    FILENAME_LENGTH = 255
+
     def __init__(self):
-        self.crypto_manager = CryptoManager()
-        self.client_manager = ClientManager()
+        pass
 
     def parse_request(self, data):
-        header = data[:24]
-        client_id, version, code, payload_size = struct.unpack('16s B H I', header)
-        payload = data[24:]
-        return client_id, version, code, payload
+        if len(data) < 24:
+            raise ValueError("Data is too short to contain a valid request")
+
+        # Parse the header with big-endian byte order
+        header = data[:23]
+        client_id, version, code, payload_size = struct.unpack('>16s B H I', header)
+        
+        # Extract the payload
+        payload = data[23:23+payload_size]
+
+        return RequestStructure(client_id, version, code, payload_size, payload)
 
     def create_response(self, code, client_id=None, *args):
-        if code == 1600:  # Register success
-            return struct.pack('!BHI16s', 1, code, 16, client_id) #TODO use VERSION  instead just 1
-        elif code == 1601:  # Register fail
-            return struct.pack('!BHI', 1, code, 0)
-        elif code == 1602:  # AES key sent
+        if client_id and isinstance(client_id, str):
+            uuid_obj = uuid.UUID(client_id)
+            client_id = uuid_obj.bytes
+            
+        if code == self.REGISTER_SUCCESS:
+            return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
+        elif code == self.REGISTER_FAIL:
+            return struct.pack('!BHI', self.VERSION, code, 0)
+        elif code == self.AES_KEY_SENT:
             enc_aes_key = args[0]
-            return struct.pack(f'!BHI16s{len(enc_aes_key)}s', 1, code, 16 + len(enc_aes_key), client_id, enc_aes_key)
-        elif code == 1603:  # File received with CRC
-            filename, crc = args
-            return struct.pack(f'!BHI16sI255sI', 1, code, 16 + 4 + 255 + 4, client_id, len(filename), filename, crc)
-        elif code in [1604, 1606]:  # Thank you, Reconnect denied
-            return struct.pack('!BHI16s', 1, code, 16, client_id)
-        elif code == 1605:  # Reconnect approved
+            return struct.pack(f'!BHI16s{len(enc_aes_key)}s', self.VERSION, code, self.CLIENT_ID_LENGTH + len(enc_aes_key), client_id, enc_aes_key)
+        elif code == self.FILE_RECEIVED_WITH_CRC:
+            content_size, filename, crc = args
+            return struct.pack(f'!BHI16sI{self.FILENAME_LENGTH}sI', self.VERSION, code, self.CLIENT_ID_LENGTH + 4 + self.FILENAME_LENGTH + 4, client_id, content_size, filename, crc)
+        elif code in [self.THANK_YOU, self.RECONNECT_DENIED]:
+            return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
+        elif code == self.RECONNECT_APPROVED:
             enc_aes_key = args[0]
-            return struct.pack(f'!BHI16s{len(enc_aes_key)}s', 1, code, 16 + len(enc_aes_key), client_id, enc_aes_key)
-        elif code == 1607:  # General error
-            return struct.pack('!BHI16s', 1, code, 16, client_id)
+            return struct.pack(f'!BHI16s{len(enc_aes_key)}s', self.VERSION, code, self.CLIENT_ID_LENGTH + len(enc_aes_key), client_id, enc_aes_key)
+        elif code == self.GENERAL_ERROR:
+            return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
 
 if __name__ == "__main__":
-    protocol = Protocol()
-    print(protocol.create_response(1600, "sdfdsf454523fd".ljust(16).encode('utf-8')))
+    string = b"Hello, World!"
+    
