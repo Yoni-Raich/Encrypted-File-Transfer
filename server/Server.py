@@ -40,15 +40,32 @@ def send_response(client_socket, response):
     client_socket.sendall(response[RESPONSE_HEADER_SIZE:])
 
 class Server:
-    def __init__(self, host='localhost', port=1234):
+    def __init__(self, host='0.0.0.0'):
         self.host = host
-        self.port = port
+        self.port = self.get_port_from_info()
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.protocol = Protocol()
         self.requestHandler = RequestHandler()
         self.request_structure = None
 
+    def get_port_from_info(self):
+        try:
+            f =open('port.info', 'r') 
+            port = int(f.read().strip())
+        
+            #verify port
+            if port < 1024 or port > 65535:
+                raise ValueError("Invalid port number")
+        except (ValueError, FileNotFoundError) as e:
+            if isinstance(e, ValueError):
+                print(f"Invalid port number: - Using default port 1256")
+            else:
+                print(f"Error reading port number from file - Using default port 1256")
+            port = 1256
+
+        return port
+    
     def start(self):
         self.socket.listen()
         print(f"Server listening on {self.host}:{self.port}")
