@@ -25,6 +25,7 @@ public:
     CryptoPP::RSA::PrivateKey getPrivateKey();
     CryptoPP::SecByteBlock getAESKey();
     void setAESKey(const std::string& keyString);
+	void setRsaPrivateKey(const std::string& keyString);
 
 private:
     CryptoPP::RSA::PrivateKey privateKey;

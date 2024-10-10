@@ -172,6 +172,15 @@ void CryptoManager::generateRSAKeys()
         aesKey = data;
     }
 
+	void CryptoManager::setRsaPrivateKey(const std::string& keyString)
+	{
+		ByteQueue queue;
+		queue.Put(reinterpret_cast<const byte*>(keyString.data()), keyString.size());
+		queue.MessageEnd();
+
+		privateKey.Load(queue);
+	}
+
     /*void setAESKey(const SecByteBlock& key) {
         CryptoManager::aesKey = key;
 	}*/
