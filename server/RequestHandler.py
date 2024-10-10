@@ -54,19 +54,20 @@ class RequestHandler:
         self.crypto_manager = CryptoManager(public_key)
         self.crypto_manager.generate_aes_key()
         enc_aes_key = self.crypto_manager.get_encrypted_aes_key()
-        
         self.client_manager.update_client(client_id, aes_key=self.crypto_manager.aes_key)
+        
         return self.protocol.create_response(1602, client_id, enc_aes_key)
 
     def handle_reconnect(self, client_id, payload):
         name = self.request_structur.get_name()
         client = self.client_manager.get_client(client_id)
         if client and client['name'] == name:
-            aes_key = client['aes_key']
             public_key = client['public_key']
             crypto_manager = CryptoManager(public_key)
-            crypto_manager.aes_key = aes_key
-            enc_aes_key = crypto_manager.get_encrypted_aes_key()
+            self.crypto_manager.generate_aes_key()
+            enc_aes_key = self.crypto_manager.get_encrypted_aes_key()
+            self.client_manager.update_client(client_id, aes_key=self.crypto_manager.aes_key)
+            
             return self.protocol.create_response(1605, client_id, enc_aes_key)
         else:
             return self.protocol.create_response(1606, client_id)

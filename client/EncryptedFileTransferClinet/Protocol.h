@@ -26,7 +26,8 @@ public:
     std::vector<uint8_t> create_public_key_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& public_key);
     std::vector<uint8_t> create_file_request(const std::vector<uint8_t> client_id, const std::string& filename, const size_t original_file_size, const std::vector<uint8_t>& file_content, const size_t packet_num);
     std::vector<uint8_t> create_crc_request(const int code, const std::vector<uint8_t> client_id, const std::string& filename);
-   
+    std::vector<uint8_t> create_reconnect_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& name);
+
 private:
     const size_t CLIENT_ID_SIZE = 16;
     const size_t VERSION = 1;

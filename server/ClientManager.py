@@ -55,11 +55,6 @@ class ClientManager:
         
     
 if __name__ == "__main__":
-    files = {}
-    list_files = ['file1', 'file2', 'file3']
-    list_files.append('file4')
-    print(list_files)
-    files['folder'] = list_files
-    files['folder'].append('file5')
-    print(files)
+    new_uuid = uuid.uuid4()
+    print(new_uuid)
 

@@ -158,6 +158,26 @@ void CryptoManager::generateRSAKeys()
         return publicKeyVec;
     }
 
+    std::string CryptoManager::getStringPrivateKey()
+    {
+        std::string result;
+        CryptoPP::StringSink ss(result);
+        privateKey.Save(ss);
+
+        std::string encoded;
+        CryptoPP::StringSource(result, true,
+            new CryptoPP::Base64Encoder(
+                new CryptoPP::StringSink(encoded),
+                false  // No line breaks
+            )
+        );
+
+        // Remove any remaining whitespace
+        encoded.erase(std::remove_if(encoded.begin(), encoded.end(), ::isspace), encoded.end());
+
+        return encoded;
+    }
+
     SecByteBlock CryptoManager::getAESKey() {
 		return aesKey;
 	}
@@ -172,14 +192,18 @@ void CryptoManager::generateRSAKeys()
         aesKey = data;
     }
 
-	void CryptoManager::setRsaPrivateKey(const std::string& keyString)
-	{
-		ByteQueue queue;
-		queue.Put(reinterpret_cast<const byte*>(keyString.data()), keyString.size());
-		queue.MessageEnd();
+    void CryptoManager::setPrivateKey(const std::string& keyString)
+    {
+        std::string decoded;
+        CryptoPP::StringSource(keyString, true,
+            new CryptoPP::Base64Decoder(
+                new CryptoPP::StringSink(decoded)
+            )
+        );
 
-		privateKey.Load(queue);
-	}
+        CryptoPP::StringSource source(decoded, true);
+        privateKey.Load(source);
+    }
 
     /*void setAESKey(const SecByteBlock& key) {
         CryptoManager::aesKey = key;

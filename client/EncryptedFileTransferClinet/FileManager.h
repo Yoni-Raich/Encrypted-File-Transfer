@@ -2,6 +2,7 @@
 
 #include <string>
 #include <stdexcept>
+#include <vector>
 
 class FileManager {
 public:
@@ -18,11 +19,13 @@ public:
     // Methods for me.info file
     bool readMeInfo();
     bool writeMeInfo();
-    std::string getClientId() const;
+    std::vector<uint8_t> getClientId() const;
     std::string getKey() const;
 
+    // Updated setClientId method
+    void setClientId(const std::vector<uint8_t>& clientId);
+
     // Setters for me.info
-    void setClientId(const std::string& clientId);
     void setKey(const std::string& key);
 
 private:

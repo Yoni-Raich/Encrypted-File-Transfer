@@ -21,11 +21,13 @@ public:
     std::string decryptRSA(const std::vector<uint8_t>& encryptedData);
     std::string getCRC(const std::string& data, bool decrypt = false);
     std::vector<uint8_t> getPublicKey();
+    std::string getStringPrivateKey();
 
     CryptoPP::RSA::PrivateKey getPrivateKey();
     CryptoPP::SecByteBlock getAESKey();
     void setAESKey(const std::string& keyString);
-	void setRsaPrivateKey(const std::string& keyString);
+	void setPrivateKey(const std::string& keyString);
+	
 
 private:
     CryptoPP::RSA::PrivateKey privateKey;

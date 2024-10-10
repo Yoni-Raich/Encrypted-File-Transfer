@@ -48,7 +48,7 @@ class Protocol:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
         elif code == self.REGISTER_FAIL:
             return struct.pack('!BHI', self.VERSION, code, 0)
-        elif code == self.AES_KEY_SENT:
+        elif code == self.AES_KEY_SENT or code == self.RECONNECT_APPROVED:
             enc_aes_key = args[0]
             return struct.pack(f'!BHI16s{len(enc_aes_key)}s', self.VERSION, code, self.CLIENT_ID_LENGTH + len(enc_aes_key), client_id, enc_aes_key)
         elif code == self.FILE_RECEIVED_WITH_CRC:
@@ -56,9 +56,6 @@ class Protocol:
             return struct.pack(f'!BHI16sI{self.FILENAME_LENGTH}sI', self.VERSION, code, self.CLIENT_ID_LENGTH + 4 + self.FILENAME_LENGTH + 4, client_id, content_size, filename, crc)
         elif code in [self.THANK_YOU, self.RECONNECT_DENIED]:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
-        elif code == self.RECONNECT_APPROVED:
-            enc_aes_key = args[0]
-            return struct.pack(f'!BHI16s{len(enc_aes_key)}s', self.VERSION, code, self.CLIENT_ID_LENGTH + len(enc_aes_key), client_id, enc_aes_key)
         elif code == self.GENERAL_ERROR:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
 

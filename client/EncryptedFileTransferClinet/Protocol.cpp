@@ -139,3 +139,7 @@ std::vector<uint8_t> Protocol::create_crc_request(const int code, const std::vec
     return create_request(code, client_id, 3, payload);
 }
 
+std::vector<uint8_t> Protocol::create_reconnect_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& name) {
+    return create_request(827, client_id, 3, name);
+}
+

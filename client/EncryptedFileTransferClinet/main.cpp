@@ -11,7 +11,7 @@
 int main(int argc, char* argv[]) {
 
 	FileManager fileManager;
-    if(!fileManager.readTransferInfo());
+    if(!fileManager.readTransferInfo())
     {
 		std::cerr << "Failed to read transfer info" << std::endl;
 		return 1;
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 	std::string filePath = fileManager.getFilename();
     try 
     {
-		Client client(server_ip, server_port, username, filePath);
+		Client client(server_ip, server_port, username, filePath, fileManager);
         client.run();
     }
     catch (const std::exception& e) {
