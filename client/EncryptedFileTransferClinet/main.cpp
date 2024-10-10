@@ -4,13 +4,16 @@
 #include <iostream>
 #include "Client.h"
 #include "cksum_new.h"
+#include "FileManager.h"
 
 
 
 int main(int argc, char* argv[]) {
 
-    std::string server_ip = "localhost";
-    std::string server_port = "1234";
+	FileManager fileManager;
+    fileManager.readTransferInfo();
+    std::string server_ip = fileManager.getIpAddress();
+	std::string server_port = fileManager.getPort();
     try 
     {
         Client client(server_ip, server_port);

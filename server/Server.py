@@ -51,7 +51,7 @@ class Server:
 
     def get_port_from_info(self):
         try:
-            f =open('port.info', 'r') 
+            f = open('port.info', 'r') 
             port = int(f.read().strip())
         
             #verify port
