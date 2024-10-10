@@ -3,11 +3,13 @@
 #include <fstream>
 #include <iomanip>
 #include "cksum_new.h"
+#include "FileManager.h"
 
-Client::Client(const std::string& server_ip, const std::string& server_port)
+Client::Client(const std::string& server_ip, const std::string& server_port, const std::string& username, const std::string& filePath)
     : m_network_manager(server_ip, server_port) {
-    m_client_id = ""; // Generate a unique client ID
-    m_name = "ClientName"; // Set a client name
+    m_client_id = "";
+    m_name = username; 
+	m_filePath = filePath;
 }
 
 Client::~Client() {
@@ -16,23 +18,34 @@ Client::~Client() {
 void Client::run() {
     try {
         m_network_manager.connect();
-
-        if (!register_to_server()) {
-            std::cerr << "Failed to register to server" << std::endl;
-            return;
+		
+        bool isClienRegistered = InitClientData();
+        if (!isClienRegistered)
+        {
+            register_to_server();
         }
+        
 
         if (!perform_key_exchange()) {
             std::cerr << "Failed to perform key exchange" << std::endl;
             return;
         }
        
-        send_file("C:\\final_project\\client\\EncryptedFileTransferClinet\\x64\\Debug\\test.txt");
+        send_file(m_filePath);
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
     }
     m_network_manager.disconnect();
+}
+
+bool Client::InitClientData()
+{
+	if (m_fileManager.readMeInfo()) //TODO: test if the username missmatch
+    {
+        m_client_id = m_fileManager.getClientId();
+        m_crypto_manager.setRsaPrivateKey(m_fileManager.getKey());
+    }
 }
 
 std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) {
@@ -95,9 +108,9 @@ bool Client::register_to_server() {
         m_client_id = bytesToUUIDString(payload);
         return true;
     }
-    return false;
+	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
 }
-//
+
 bool Client::perform_key_exchange() {
     m_crypto_manager.generateRSAKeys();
     std::vector<uint8_t> public_key = m_crypto_manager.getPublicKey();

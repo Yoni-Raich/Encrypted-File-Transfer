@@ -10,6 +10,8 @@ constexpr size_t VERSION = 1;
 constexpr size_t CODE_SIZE = 2;
 constexpr size_t PAYLOAD_SIZE_SIZE = 4;
 
+
+
 // Define payload sizes for each request code
 const std::map<uint16_t, uint32_t> PAYLOAD_SIZES = {
     {825, 255},   // Register
