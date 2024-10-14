@@ -31,7 +31,7 @@ class CryptoManager:
 
     def encrypt_aes(self, data):
         if isinstance(data, str):
-            data = data.encode('utf-8')
+            data = data.encode('ascii')
         
         padded_data = pad(data, AES.block_size)
         cipher_aes = AES.new(self.aes_key, AES.MODE_CBC)
@@ -51,7 +51,7 @@ class CryptoManager:
 
     def encrypt_rsa(self, data):
         if isinstance(data, str):
-            data = data.encode('utf-8')
+            data = data.encode('ascii')
         cipher_rsa = PKCS1_OAEP.new(self.public_key)
         encrypted_data = cipher_rsa.encrypt(data)
         return encrypted_data
