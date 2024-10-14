@@ -27,10 +27,10 @@ private:
     FileManager m_fileManager;
 
 
-    bool register_to_server();
-    bool perform_initial_key_exchange();
-    bool perform_reconnect();
-    bool receive_and_process_aes_key();
+    void register_to_server();
+    void perform_initial_key_exchange();
+    void perform_reconnect();
+    void receive_and_process_aes_key();
     void handle_server_response(std::string filePath);
     void send_file(const std::string& filename);
     void handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload);
