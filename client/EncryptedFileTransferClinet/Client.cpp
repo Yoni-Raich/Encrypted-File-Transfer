@@ -3,11 +3,14 @@
 #include <fstream>
 #include <iomanip>
 #include "cksum_new.h"
+#include "FileManager.h"
 
-Client::Client(const std::string& server_ip, const std::string& server_port)
+Client::Client(const std::string& server_ip, const std::string& server_port, const std::string& username, const std::string& filePath, FileManager& fileManager)
     : m_network_manager(server_ip, server_port) {
-    m_client_id = ""; // Generate a unique client ID
-    m_name = "ClientName"; // Set a client name
+    m_client_id = "";
+    m_name = username; 
+	m_filePath = filePath;
+	m_fileManager = fileManager;
 }
 
 Client::~Client() {
@@ -16,26 +19,33 @@ Client::~Client() {
 void Client::run() {
     try {
         m_network_manager.connect();
-
-        if (!register_to_server()) {
-            std::cerr << "Failed to register to server" << std::endl;
-            return;
+        
+        bool isClientRegistered = InitClientData();
+        if (!isClientRegistered) 
+        {
+            register_to_server();
+			std::cout << "You are now registered to the server" << std::endl;
+            perform_initial_key_exchange();
+			std::cout << "Initial key exchange completed" << std::endl;
+        } 
+        else
+        {
+            perform_reconnect();
+			std::cout << "Reconnect completed" << std::endl;
         }
 
-        if (!perform_key_exchange()) {
-            std::cerr << "Failed to perform key exchange" << std::endl;
-            return;
-        }
        
-        send_file("C:\\final_project\\client\\EncryptedFileTransferClinet\\x64\\Debug\\test.txt");
+        send_file(m_filePath);
+		std::cout << "File sent successfully" << std::endl;
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e) 
+    {        
         std::cerr << "Error: " << e.what() << std::endl;
     }
     m_network_manager.disconnect();
 }
-
-std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) {
+std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) 
+{
     if (bytes.size() != 16) {
         throw std::invalid_argument("UUID must be 16 bytes");
     }
@@ -50,8 +60,21 @@ std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) {
     }
     return ss.str();
 }
+bool Client::InitClientData()
+{
+	if (m_fileManager.readMeInfo()) //TODO: test if the username missmatch
+    {
+        m_client_id = bytesToUUIDString(m_fileManager.getClientId());
+        m_crypto_manager.setPrivateKey(m_fileManager.getKey());
+		return true;
+    }
+	return false;
+}
 
-std::vector<uint8_t> stringToBinary(const std::string& input, size_t desiredSize) {
+
+
+std::vector<uint8_t> stringToBinary(const std::string& input, size_t desiredSize) 
+{
     std::vector<uint8_t> binaryData(desiredSize, 0);  // Initialize with zeros
 
     size_t inputSize = std::min(input.length(), desiredSize);
@@ -91,28 +114,44 @@ bool Client::register_to_server() {
     std::vector<uint8_t> payload;
     std::tie(version, code, payload) = m_protocol.parse_response(response);
 
-    if (code == 1600 && !payload.empty()) {
+    if (code == 1600 && !payload.empty()) 
+    {
         m_client_id = bytesToUUIDString(payload);
+		m_fileManager.setClientId(payload);
         return true;
     }
-    return false;
+	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
 }
-//
-bool Client::perform_key_exchange() {
+
+bool Client::perform_initial_key_exchange() {
     m_crypto_manager.generateRSAKeys();
     std::vector<uint8_t> public_key = m_crypto_manager.getPublicKey();
     std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
     nameBin.insert(nameBin.end(), public_key.begin(), public_key.end());
     std::vector<uint8_t> request = m_protocol.create_public_key_request(uuidStringToBinary(m_client_id), nameBin);
     m_network_manager.sendRequest(request);
+    
+    m_fileManager.setKey(m_crypto_manager.getStringPrivateKey());
+    m_fileManager.writeMeInfo();
+    return receive_and_process_aes_key();
+}
 
+bool Client::perform_reconnect() {
+    std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
+    std::vector<uint8_t> request = m_protocol.create_reconnect_request(uuidStringToBinary(m_client_id), nameBin);
+    m_network_manager.sendRequest(request);
+
+    return receive_and_process_aes_key();
+}
+
+bool Client::receive_and_process_aes_key() {
     std::vector<uint8_t> response = m_network_manager.receiveResponse();
     uint8_t version;
     uint16_t code;
     std::vector<uint8_t> payload;
     std::tie(version, code, payload) = m_protocol.parse_response(response);
 
-    if (code == 1602) {
+    if (code == 1602 || code == 1605) {
         // Extract Client ID (first 16 bytes)
         std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + 16);
         std::string received_client_id = bytesToUUIDString(client_id_bytes);
@@ -120,7 +159,7 @@ bool Client::perform_key_exchange() {
         // Verify that the received Client ID matches our Client ID
         if (received_client_id != m_client_id) {
             std::cerr << "Received Client ID does not match our Client ID" << std::endl;
-            return false;
+			throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
         }
 
         // Extract encrypted AES key (remaining bytes)
@@ -131,7 +170,7 @@ bool Client::perform_key_exchange() {
         m_crypto_manager.setAESKey(aes_key);
         return true;
     }
-    return false;
+    throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
 }
 
 void Client::handle_server_response(std::string filePath) {
@@ -194,7 +233,6 @@ void Client::handle_crc_response(std::string filePath, const std::vector<uint8_t
         | (payload[payloadSize - 2] << 8) | payload[payloadSize - 1];
     std::vector<uint8_t> bit_client_id = uuidStringToBinary(m_client_id);
     uint32_t current_crc = readfile(filePath);
-	std::cout << "CRC: " << current_crc << std::endl;
     if (current_crc == crc) {
         std::vector<uint8_t> request = m_protocol.create_crc_request(900, bit_client_id, filename);
         m_network_manager.sendRequest(request);
