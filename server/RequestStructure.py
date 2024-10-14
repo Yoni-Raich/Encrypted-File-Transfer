@@ -14,7 +14,7 @@ class RequestStructure:
         self.payload = payload
 
     def get_name(self):
-        return self.payload[:self.NAME_MAX_LENGTH].decode('utf-8').strip('\x00')
+        return self.payload[:self.NAME_MAX_LENGTH].decode('ascii').strip('\x00')
 
     def get_public_key(self):
         return self.payload[self.NAME_MAX_LENGTH:self.NAME_MAX_LENGTH + self.PUBLIC_KEY_LENGTH].rstrip(b'\x00')
@@ -24,7 +24,7 @@ class RequestStructure:
             self.payload = packet
             
         content_size, orig_file_size, packet_number, total_packet = struct.unpack('!IIHH', self.payload[:12])
-        filename = self.payload[12:12 + self.NAME_MAX_LENGTH].decode('utf-8').strip('\x00')
+        filename = self.payload[12:12 + self.NAME_MAX_LENGTH].decode('ascii').strip('\x00')
         encrypted_file_content = self.payload[12 + self.NAME_MAX_LENGTH:]
         file_structure = {
             'content_size': content_size,
