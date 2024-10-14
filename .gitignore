@@ -42,3 +42,6 @@ bld/
 client/EncryptedFileTransferClinet/packages/
 server/__pycache__/
 /client/EncryptedFileTransferClinet/vcpkg_installed
+client/EncryptedFileTransferClinet/me.info
+/server/clients
+/Testing
