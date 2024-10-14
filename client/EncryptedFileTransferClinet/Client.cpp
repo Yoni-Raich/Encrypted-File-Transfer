@@ -24,21 +24,28 @@ void Client::run() {
         if (!isClientRegistered) 
         {
             register_to_server();
+			std::cout << "You are now registered to the server" << std::endl;
             perform_initial_key_exchange();
+			std::cout << "Initial key exchange completed" << std::endl;
         } 
         else
         {
             perform_reconnect();
+			std::cout << "Reconnect completed" << std::endl;
         }
 
        
         send_file(m_filePath);
+		std::cout << "File sent successfully" << std::endl;
     }
-    catch (const std::exception& e) {        std::cerr << "Error: " << e.what() << std::endl;
+    catch (const std::exception& e) 
+    {        
+        std::cerr << "Error: " << e.what() << std::endl;
     }
     m_network_manager.disconnect();
 }
-std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) {
+std::string bytesToUUIDString(const std::vector<uint8_t>& bytes) 
+{
     if (bytes.size() != 16) {
         throw std::invalid_argument("UUID must be 16 bytes");
     }
@@ -66,7 +73,8 @@ bool Client::InitClientData()
 
 
 
-std::vector<uint8_t> stringToBinary(const std::string& input, size_t desiredSize) {
+std::vector<uint8_t> stringToBinary(const std::string& input, size_t desiredSize) 
+{
     std::vector<uint8_t> binaryData(desiredSize, 0);  // Initialize with zeros
 
     size_t inputSize = std::min(input.length(), desiredSize);
@@ -162,7 +170,7 @@ bool Client::receive_and_process_aes_key() {
         m_crypto_manager.setAESKey(aes_key);
         return true;
     }
-    return false;
+    throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
 }
 
 void Client::handle_server_response(std::string filePath) {
@@ -225,7 +233,6 @@ void Client::handle_crc_response(std::string filePath, const std::vector<uint8_t
         | (payload[payloadSize - 2] << 8) | payload[payloadSize - 1];
     std::vector<uint8_t> bit_client_id = uuidStringToBinary(m_client_id);
     uint32_t current_crc = readfile(filePath);
-	std::cout << "CRC: " << current_crc << std::endl;
     if (current_crc == crc) {
         std::vector<uint8_t> request = m_protocol.create_crc_request(900, bit_client_id, filename);
         m_network_manager.sendRequest(request);

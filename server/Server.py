@@ -3,7 +3,7 @@ import struct
 import threading
 from Protocol import Protocol
 from RequestHandler import RequestHandler
-from RequestStructure import RequestStructure
+from ClientManager import ClientManager
 
 REQUEST_HEADER_SIZE = 23
 RESPONSE_HEADER_SIZE = 7
@@ -46,7 +46,7 @@ class Server:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.protocol = Protocol()
-        self.requestHandler = RequestHandler()
+        self.client_manager = ClientManager()
         self.request_structure = None
 
     def get_port_from_info(self):
@@ -71,19 +71,21 @@ class Server:
         print(f"Server listening on {self.host}:{self.port}")
         while True:
             client_socket, address = self.socket.accept()
-            client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
+            client_thread = threading.Thread(target=self.handle_client, args=(client_socket, self.client_manager))
             client_thread.start()
 
-    def handle_client(self, client_socket):
+    def handle_client(self, client_socket, client_manager):
+        print(f"Accepted connection from {client_socket.getpeername()}")
+        request_handler = RequestHandler()
         while True:
             try:
                 request = receive_request(client_socket)
                 if not request:
                     break
 
-                self.receive_request = self.protocol.parse_request(request)
-                self.requestHandler.new_request(self.receive_request)
-                response = self.requestHandler.create_response(client_socket)
+                received_request_struct = self.protocol.parse_request(request)
+                request_handler.new_request(received_request_struct, client_manager)
+                response = request_handler.create_response(client_socket)
                 send_response(client_socket, response)
 
             except Exception as e:

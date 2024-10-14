@@ -1,0 +1,3 @@
+TODO: add a files support for the Client and for the Server
+TODO: Handling exceptions 
+TODO: Verify little-ending
