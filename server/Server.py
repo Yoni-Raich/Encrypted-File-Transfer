@@ -85,7 +85,10 @@ class Server:
 
                 received_request_struct = self.protocol.parse_request(request)
                 request_handler.new_request(received_request_struct, client_manager)
-                response = request_handler.create_response(client_socket)
+                response, code= request_handler.create_response(client_socket)
+                if code == 901:
+                    continue
+                
                 send_response(client_socket, response)
 
             except Exception as e:
