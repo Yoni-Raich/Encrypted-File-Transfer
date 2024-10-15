@@ -11,11 +11,8 @@ public:
 
     void connect();
     void disconnect();
-    void sendData(const std::string data);
-    void sendData(const std::vector<uint8_t>& data);
     std::string receiveData();
     std::vector<uint8_t> receiveDataBytes();
-
     void sendRequest(const std::vector<uint8_t>& request);
     void sendFilePacket(const std::vector<uint8_t>& request, const size_t packetSize);
     std::vector<uint8_t> receiveResponse();
