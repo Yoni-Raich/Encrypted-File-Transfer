@@ -93,7 +93,6 @@ class RequestHandler:
             self.file_structure['decrypted_file_content'] = file_content
 
             crc = crypto_manager.get_CRC(file_content)
-            print(f'File CRC: {crc}')
             return self.protocol.create_response(1603, client_id, self.file_structure['content_size'], self.file_structure['filename'].encode('ascii'), crc)
         else:
             return self.protocol.create_response(1607, client_id)  # General error

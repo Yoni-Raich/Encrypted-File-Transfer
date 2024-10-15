@@ -37,6 +37,8 @@ void Client::run() {
 
 		send_file(m_filePath, 0);
 		std::cout << "File sent successfully" << std::endl;
+		if(!getApprovedMassage())
+			throw std::runtime_error("Server responded with an unknown error code");
 	}
 	catch (const std::exception& e)
 	{
@@ -257,37 +259,47 @@ void Client::send_file(const std::string& filePath, u_int timeout)
 	uint16_t code;
 	std::vector<uint8_t> payload;
 	std::tie(version, code, payload) = m_protocol.parse_response(response);
-
+	bool isFileTransferApproved = false;
 	if (code == 1603)
 	{
-		if (handle_crc_response(filePath, payload))
-			return;
-
-		if (timeout < 3)
+		isFileTransferApproved = handle_crc_response(filePath, payload);
+		if (!isFileTransferApproved)
 		{
-			std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
-			std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
+			if (timeout < 3)
+			{
+				std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
+				std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
+				m_network_manager.sendRequest(request);
+				Client::send_file(filePath, ++timeout);
+				return;
+			}
+
+			std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
 			m_network_manager.sendRequest(request);
-			Client::send_file(filePath, ++timeout);
-			return;
+			if (getApprovedMassage())
+				throw std::runtime_error(m_protocol.FATAL_CRC_ERROR);
 		}
-
-		std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
-		m_network_manager.sendRequest(request);
-
-		response = m_network_manager.receiveResponse();
-		std::tie(version, code, payload) = m_protocol.parse_response(response);
-		if (code == 1604)
-		{
-			throw std::runtime_error(m_protocol.FATAL_CRC_ERROR);
-		}
+		return;
 	}
 		
 	std::cerr << "Server responded with an unknown error code: " << code << std::endl;
 	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
-	//handle_server_response(filePath);
 }
+bool Client::getApprovedMassage()
+{
+	std::vector<uint8_t> response = m_network_manager.receiveResponse();
+	uint8_t version;
+	uint16_t code;
+	std::vector<uint8_t> payload;
+	std::tie(version, code, payload) = m_protocol.parse_response(response);
 
+	if (code == 1604)
+	{
+		std::cout << "Server send approved with code: " << std::to_string(code) << " will disconnect" << std::endl;
+		return true;
+	}
+	return false;
+}
 bool Client::handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload) {
 	std::string filename(payload.begin() + 20, payload.begin() + 255);
 	//extract the value from the last 4 bytes of the payload
@@ -302,19 +314,4 @@ bool Client::handle_crc_response(std::string filePath, const std::vector<uint8_t
 		return true;
 	}
 	return false;
-
-	/*else {
-		static int retry_count = 0;
-		if (retry_count < 3) {
-			std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
-			m_network_manager.sendRequest(request);
-			retry_count++;
-			send_file(filename);
-		}
-		else {
-			std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
-			m_network_manager.sendRequest(request);
-			retry_count = 0;
-		}
-	}*/
 }

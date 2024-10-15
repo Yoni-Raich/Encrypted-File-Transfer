@@ -33,5 +33,7 @@ private:
     void receive_and_process_aes_key(u_int timeout, std::vector<uint8_t> request);
     void handle_server_response(std::string filePath, u_int timeout);
     void send_file(const std::string& filename, u_int timeout);
+	bool getApprovedMassage();
     bool handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload);
+
 };

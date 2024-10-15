@@ -15,8 +15,8 @@ public:
     const int FILE_PACKET_SIZE = MAX_FILE_PACKET_SIZE + FILE_HAEDER_SIZE + FILE_NAME_SIZE;
 
     const std::string SERVER_RESPOND_ERROR = "server responded with an error";
-	const std::string FATAL_REGISTER_ERROR = "Fatal error: Failed to register with server";
-	const std::string FATAL_KEY_EXCHANGE_ERROR = "Fatal error: Failed to exchange keys with server";
+	const std::string FATAL_REGISTER_ERROR = "Fatal error: Failed to register, ";
+	const std::string FATAL_KEY_EXCHANGE_ERROR = "Fatal error: Failed to exchange keys, ";
 	const std::string FATAL_CRC_ERROR = "Fatal error: CRC mismatch after 3 attempts";
 
     // Parse incoming response from server
