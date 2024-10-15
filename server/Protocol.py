@@ -14,7 +14,7 @@ class Protocol:
     REGISTER_FAIL = 1601
     AES_KEY_SENT = 1602
     FILE_RECEIVED_WITH_CRC = 1603
-    THANK_YOU = 1604
+    APPROVED = 1604
     RECONNECT_APPROVED = 1605
     RECONNECT_DENIED = 1606
     GENERAL_ERROR = 1607
@@ -54,7 +54,7 @@ class Protocol:
         elif code == self.FILE_RECEIVED_WITH_CRC:
             content_size, filename, crc = args
             return struct.pack(f'!BHI16sI{self.FILENAME_LENGTH}sI', self.VERSION, code, self.CLIENT_ID_LENGTH + 4 + self.FILENAME_LENGTH + 4, client_id, content_size, filename, crc)
-        elif code in [self.THANK_YOU, self.RECONNECT_DENIED]:
+        elif code in [self.APPROVED, self.RECONNECT_DENIED]:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
         elif code == self.GENERAL_ERROR:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)

@@ -1,6 +1,7 @@
 import socket
 import struct
 import threading
+import errno  # Add this import at the top of the file
 from Protocol import Protocol
 from RequestHandler import RequestHandler
 from ClientManager import ClientManager
@@ -77,22 +78,39 @@ class Server:
     def handle_client(self, client_socket, client_manager):
         print(f"Accepted connection from {client_socket.getpeername()}")
         request_handler = RequestHandler()
-        while True:
-            try:
-                request = receive_request(client_socket)
-                if not request:
+        try:
+            while True:
+                try:
+                    request = receive_request(client_socket)
+                    if not request:
+                        print(f"Client {client_socket.getpeername()} disconnected")
+                        break
+
+                    received_request_struct = self.protocol.parse_request(request)
+                    request_handler.new_request(received_request_struct, client_manager)
+                    response, code = request_handler.create_response(client_socket)
+                    if code == 901:
+                        continue
+                    
+                    send_response(client_socket, response)
+
+                    # Check if the response code requires immediate disconnection
+                    if code in [1601, 1604, 1606, 1607]:
+                        print(f"Sent response with code {code}. Expecting client to disconnect.")
+                        break  # Exit the loop to close the connection
+
+                except socket.error as e:
+                    if e.errno in (errno.ECONNRESET, errno.ECONNABORTED, errno.WSAECONNRESET, errno.WSAECONNABORTED):
+                        print(f"Client {client_socket.getpeername()} disconnected")
+                    else:
+                        print(f"Socket error with client {client_socket.getpeername()}: {e}")
                     break
 
-                received_request_struct = self.protocol.parse_request(request)
-                request_handler.new_request(received_request_struct, client_manager)
-                response = request_handler.create_response(client_socket)
-                send_response(client_socket, response)
-
-            except Exception as e:
-                print(f"Error handling client: {e}")
-                break
-
-        client_socket.close()
+        except Exception as e:
+            print(f"Unexpected error handling client {client_socket.getpeername()}: {e}")
+        finally:
+            client_socket.close()
+           
 
 if __name__ == "__main__":
     server = Server()

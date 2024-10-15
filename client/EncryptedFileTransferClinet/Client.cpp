@@ -23,7 +23,7 @@ void Client::run() {
 		bool isClientRegistered = InitClientData();
 		if (!isClientRegistered)
 		{
-			register_to_server();
+			register_to_server(0);
 			std::cout << "You are now registered to the server" << std::endl;
 			perform_initial_key_exchange();
 			std::cout << "Initial key exchange completed" << std::endl;
@@ -35,12 +35,17 @@ void Client::run() {
 		}
 
 
-		send_file(m_filePath);
+		send_file(m_filePath, 0);
 		std::cout << "File sent successfully" << std::endl;
+		if(!getApprovedMassage())
+			throw std::runtime_error("Server responded with an unknown error code");
 	}
 	catch (const std::exception& e)
 	{
-		std::cerr << "Error: " << e.what() << std::endl;
+		//close the programe and print the error
+		std::cerr << e.what() << std::endl;
+		m_network_manager.disconnect();
+		exit(1);
 	}
 	m_network_manager.disconnect();
 }
@@ -104,7 +109,8 @@ std::vector<uint8_t> uuidStringToBinary(const std::string& uuid) {
 	return binaryData;
 }
 
-void Client::register_to_server() {
+void Client::register_to_server(u_int timeout)
+{
 	std::vector<uint8_t> request = m_protocol.create_register_request(stringToBinary(m_client_id, 16), m_name);
 	m_network_manager.sendRequest(request);
 
@@ -120,8 +126,22 @@ void Client::register_to_server() {
 		m_fileManager.setClientId(payload);
 		return;
 	}
-
-	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
+	//If response return with error, try to register again
+	if (timeout < 3)
+	{
+		std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
+		Client::register_to_server(++timeout);
+		return;
+	}
+	
+	//If response return with error, more then 3 times throw an exception
+	std::string error = m_protocol.FATAL_REGISTER_ERROR;
+	if (code == 1601)
+		error += " Server responded with an error code : " + std::to_string(code);
+	else
+		error += " Server responded with an unknown error code : " + std::to_string(code);
+	
+	throw std::runtime_error(error);
 }
 
 void Client::perform_initial_key_exchange() {
@@ -130,40 +150,34 @@ void Client::perform_initial_key_exchange() {
 	std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
 	nameBin.insert(nameBin.end(), public_key.begin(), public_key.end());
 	std::vector<uint8_t> request = m_protocol.create_public_key_request(uuidStringToBinary(m_client_id), nameBin);
-	m_network_manager.sendRequest(request);
 
 	m_fileManager.setKey(m_crypto_manager.getStringPrivateKey());
 	m_fileManager.writeMeInfo();
 	
-	receive_and_process_aes_key();
+	receive_and_process_aes_key(0, request);
 }
 
 void Client::perform_reconnect() {
 	std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
 	std::vector<uint8_t> request = m_protocol.create_reconnect_request(uuidStringToBinary(m_client_id), nameBin);
-	m_network_manager.sendRequest(request);
-
-	receive_and_process_aes_key();
+	
+	receive_and_process_aes_key(0, request);
 }
 
-void Client::receive_and_process_aes_key() {
+void Client::receive_and_process_aes_key(u_int timeout, std::vector<uint8_t> request) 
+{
+	m_network_manager.sendRequest(request);
+
 	std::vector<uint8_t> response = m_network_manager.receiveResponse();
 	uint8_t version;
 	uint16_t code;
 	std::vector<uint8_t> payload;
 	std::tie(version, code, payload) = m_protocol.parse_response(response);
+	std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + 16);
+	std::string received_client_id = bytesToUUIDString(client_id_bytes);
 
-	if (code == 1602 || code == 1605) {
-		// Extract Client ID (first 16 bytes)
-		std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + 16);
-		std::string received_client_id = bytesToUUIDString(client_id_bytes);
-
-		// Verify that the received Client ID matches our Client ID
-		if (received_client_id != m_client_id) {
-			std::cerr << "Received Client ID does not match our Client ID" << std::endl;
-			throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
-		}
-
+	if ((code == 1602 || code == 1605) && received_client_id == m_client_id) 
+	{
 		// Extract encrypted AES key (remaining bytes)
 		std::vector<uint8_t> encrypted_aes_key(payload.begin() + 16, payload.end());
 
@@ -172,10 +186,24 @@ void Client::receive_and_process_aes_key() {
 		m_crypto_manager.setAESKey(aes_key);
 		return;
 	}
-	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
+	// If response return with error, try to receive AES key again
+	if (timeout < 3)
+	{
+		std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
+		Client::receive_and_process_aes_key(++timeout, request);
+		return;
+	}
+	//If response return with error, more then 3 times throw an exception
+	std::string error = m_protocol.FATAL_KEY_EXCHANGE_ERROR;
+	if (code == 1606)
+		error += " Server responded with an error code :" + std::to_string(code) + " reconnect denied, please register again";
+	else
+		error += " Server responded with an unknown error code : " + std::to_string(code);
+
+	throw std::runtime_error(error);
 }
 
-void Client::handle_server_response(std::string filePath) {
+void Client::handle_server_response(std::string filePath, u_int timeout) {
 	std::vector<uint8_t> response = m_network_manager.receiveResponse();
 	uint8_t version;
 	uint16_t code;
@@ -186,6 +214,8 @@ void Client::handle_server_response(std::string filePath) {
 	case 1603: // CRC
 		handle_crc_response(filePath, payload);
 		break;
+	
+	//TODO: this part should not be here,
 	case 1604: // File transfer approved
 		std::cout << "File transfer approved" << std::endl;
 		break;
@@ -200,7 +230,7 @@ void Client::handle_server_response(std::string filePath) {
 	}
 }
 
-void Client::send_file(const std::string& filePath)
+void Client::send_file(const std::string& filePath, u_int timeout)
 {
 	std::ifstream file(filePath, std::ios::binary);
 	if (!file) {
@@ -224,10 +254,53 @@ void Client::send_file(const std::string& filePath)
 			: m_network_manager.sebdFilePacket(request, m_protocol.FILE_PACKET_SIZE);
 	}
 
-	handle_server_response(filePath);
-}
+	std::vector<uint8_t> response = m_network_manager.receiveResponse();
+	uint8_t version;
+	uint16_t code;
+	std::vector<uint8_t> payload;
+	std::tie(version, code, payload) = m_protocol.parse_response(response);
+	bool isFileTransferApproved = false;
+	if (code == 1603)
+	{
+		isFileTransferApproved = handle_crc_response(filePath, payload);
+		if (!isFileTransferApproved)
+		{
+			if (timeout < 3)
+			{
+				std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
+				std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
+				m_network_manager.sendRequest(request);
+				Client::send_file(filePath, ++timeout);
+				return;
+			}
 
-void Client::handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload) {
+			std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
+			m_network_manager.sendRequest(request);
+			if (getApprovedMassage())
+				throw std::runtime_error(m_protocol.FATAL_CRC_ERROR);
+		}
+		return;
+	}
+		
+	std::cerr << "Server responded with an unknown error code: " << code << std::endl;
+	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
+}
+bool Client::getApprovedMassage()
+{
+	std::vector<uint8_t> response = m_network_manager.receiveResponse();
+	uint8_t version;
+	uint16_t code;
+	std::vector<uint8_t> payload;
+	std::tie(version, code, payload) = m_protocol.parse_response(response);
+
+	if (code == 1604)
+	{
+		std::cout << "Server send approved with code: " << std::to_string(code) << " will disconnect" << std::endl;
+		return true;
+	}
+	return false;
+}
+bool Client::handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload) {
 	std::string filename(payload.begin() + 20, payload.begin() + 255);
 	//extract the value from the last 4 bytes of the payload
 	int payloadSize = payload.size();
@@ -238,19 +311,7 @@ void Client::handle_crc_response(std::string filePath, const std::vector<uint8_t
 	if (current_crc == crc) {
 		std::vector<uint8_t> request = m_protocol.create_crc_request(900, bit_client_id, filename);
 		m_network_manager.sendRequest(request);
+		return true;
 	}
-	else {
-		static int retry_count = 0;
-		if (retry_count < 3) {
-			std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
-			m_network_manager.sendRequest(request);
-			retry_count++;
-			send_file(filename);
-		}
-		else {
-			std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
-			m_network_manager.sendRequest(request);
-			retry_count = 0;
-		}
-	}
+	return false;
 }

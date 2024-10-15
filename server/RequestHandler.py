@@ -36,7 +36,7 @@ class RequestHandler:
         else:
             response = self.protocol.create_response(1607, client_id)  # General error
 
-        return response
+        return response, code
 
     def handle_register(self, client_id, payload):
         name = self.request_structure.get_name()
@@ -93,7 +93,6 @@ class RequestHandler:
             self.file_structure['decrypted_file_content'] = file_content
 
             crc = crypto_manager.get_CRC(file_content)
-            print(f'File CRC: {crc}')
             return self.protocol.create_response(1603, client_id, self.file_structure['content_size'], self.file_structure['filename'].encode('ascii'), crc)
         else:
             return self.protocol.create_response(1607, client_id)  # General error
@@ -110,7 +109,7 @@ class RequestHandler:
         elif code == 901:
             print(f"CRC failed for file '{filename}', client will retry")
         elif code == 902:
-            print(f"CRC failed for file '{filename}', client gave up")
+            print(f"CRC failed for file '{filename}', client gave up after 3 attempts")
         
         return response
 
