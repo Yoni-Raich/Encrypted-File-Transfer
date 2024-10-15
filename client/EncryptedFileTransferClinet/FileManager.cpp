@@ -4,6 +4,7 @@
 #include <regex>
 #include <vector>
 #include <iomanip>
+#include <iostream>
 
 // Define the constant file paths
 const std::string FileManager::TRANSFER_INFO_PATH = "transfer.info";
@@ -169,7 +170,6 @@ bool FileManager::validateClientId(const std::string& clientId) {
 }
 
 bool FileManager::validateKey(const std::string& key) {
-    // Key should be a Base64 encoded string of 43 characters ending with '='
-    //std::regex keyPattern("^[A-Za-z0-9+/]{43}=$");
+	std::cout << "Key: " << key.size() << std::endl;
     return true;
 }

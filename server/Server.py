@@ -1,7 +1,24 @@
+"""
+Secure File Transfer Server
+
+This server application provides a secure way to transfer files between clients and the server.
+It implements a custom protocol for client registration, authentication, and file transfer.
+
+Key features:
+- Client registration and reconnection
+- RSA encryption for key exchange
+- AES encryption for file transfer
+- CRC checksum for file integrity verification
+
+Developer: Yoni Raich
+Date: 10/15/2024
+"""
+
 import socket
 import struct
 import threading
-import errno  # Add this import at the top of the file
+import errno
+import time
 from Protocol import Protocol
 from RequestHandler import RequestHandler
 from ClientManager import ClientManager
@@ -82,6 +99,8 @@ class Server:
             while True:
                 try:
                     request = receive_request(client_socket)
+                    #time.sleep(10)
+                    print("\n------------------------------------------------------------------------------------\n")
                     if not request:
                         print(f"Client {client_socket.getpeername()} disconnected")
                         break
@@ -113,5 +132,13 @@ class Server:
            
 
 if __name__ == "__main__":
+    print("=" * 50)
+    print("Secure File Transfer Server")
+    print("Version: 3.0")
+    print("Developer: Yoni Raich")
+    print("ID: 318327962")
+    print("Date: 10/15/2024")
+    print("=" * 50)
+    print()
     server = Server()
     server.start()

@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <random>
 #include <map>
+#include <iostream>
 
 // Constants for message structure
 constexpr size_t CLIENT_ID_SIZE = Protocol::CLIENT_ID_SIZE;
@@ -82,7 +83,9 @@ std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<u
     request.insert(request.end(), payload.begin(), payload.end());
 
     // Pad the payload to the specified size
-    if (payload.size() < required_payload_size) {
+    if (payload.size() < required_payload_size) 
+    {
+		std::cout << "Padding payload with " << required_payload_size - payload.size() << " bytes" << std::endl;
         request.insert(request.end(), required_payload_size - payload.size(), 0);
     }
 
@@ -98,9 +101,10 @@ std::vector<uint8_t> Protocol::create_public_key_request(const std::vector<uint8
     return create_request(SEND_PUBLIC_KEY_CODE, client_id, VERSION, public_key);
 }
 //
-std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t>& client_id, const std::string& filename,const size_t original_file_size, const std::vector<uint8_t>& file_content, const size_t packet_num) 
+std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t>& client_id, const std::string& filename,const uint32_t original_file_size, const std::vector<uint8_t>& file_content, const uint16_t packet_num) 
 {
     std::vector<uint8_t> payload;
+	
     //add file_content size to payload in 4 bytes
     pushBytes(payload, file_content.size(), 4);
 

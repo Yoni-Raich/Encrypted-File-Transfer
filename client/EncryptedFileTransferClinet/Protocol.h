@@ -55,7 +55,7 @@ public:
     std::vector<uint8_t> create_request(uint16_t code, const std::vector<uint8_t>& client_id, uint8_t version, const std::vector<uint8_t>& payload);
     std::vector<uint8_t> create_register_request(const std::vector<uint8_t>& client_id, const std::string& name);
     std::vector<uint8_t> create_public_key_request(const std::vector<uint8_t>& client_id, const std::vector<uint8_t>& public_key);
-    std::vector<uint8_t> create_file_request(const std::vector<uint8_t>& client_id, const std::string& filename, size_t original_file_size, const std::vector<uint8_t>& file_content, size_t packet_num);
+    std::vector<uint8_t> create_file_request(const std::vector<uint8_t>& client_id, const std::string& filename, uint32_t original_file_size, const std::vector<uint8_t>& file_content, uint16_t packet_num);
     std::vector<uint8_t> create_crc_request(uint16_t code, const std::vector<uint8_t>& client_id, const std::string& filename);
     std::vector<uint8_t> create_reconnect_request(const std::vector<uint8_t>& client_id, const std::vector<uint8_t>& name);
 };

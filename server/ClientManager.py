@@ -65,4 +65,4 @@ class ClientManager:
     
 if __name__ == "__main__":
     new_uuid = uuid.uuid4()
-    print(new_uuid)
+   

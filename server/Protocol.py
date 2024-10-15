@@ -43,7 +43,7 @@ class Protocol:
         if client_id and isinstance(client_id, str):
             uuid_obj = uuid.UUID(client_id)
             client_id = uuid_obj.bytes
-            
+        print(f"Creating response with code {code} to client: {client_id}")
         if code == self.REGISTER_SUCCESS:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
         elif code == self.REGISTER_FAIL:
@@ -58,7 +58,7 @@ class Protocol:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
         elif code == self.GENERAL_ERROR:
             return struct.pack('!BHI16s', self.VERSION, code, self.CLIENT_ID_LENGTH, client_id)
-
+        
 if __name__ == "__main__":
     string = b"Hello, World!"
     
