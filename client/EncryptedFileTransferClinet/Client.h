@@ -27,11 +27,11 @@ private:
     FileManager m_fileManager;
 
 
-    void register_to_server();
+    void register_to_server(u_int timeout);
     void perform_initial_key_exchange();
     void perform_reconnect();
-    void receive_and_process_aes_key();
-    void handle_server_response(std::string filePath);
-    void send_file(const std::string& filename);
-    void handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload);
+    void receive_and_process_aes_key(u_int timeout, std::vector<uint8_t> request);
+    void handle_server_response(std::string filePath, u_int timeout);
+    void send_file(const std::string& filename, u_int timeout);
+    bool handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload);
 };
