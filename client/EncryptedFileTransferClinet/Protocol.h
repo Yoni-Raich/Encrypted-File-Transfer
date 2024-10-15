@@ -32,6 +32,20 @@ public:
     std::vector<uint8_t> create_crc_request(const int code, const std::vector<uint8_t> client_id, const std::string& filename);
     std::vector<uint8_t> create_reconnect_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& name);
 
+    // New constants
+    static const size_t UUID_SIZE = 16;
+    static const size_t MAX_NAME_LENGTH = 255;
+    static const uint16_t REGISTER_SUCCESS_CODE = 1600;
+    static const uint16_t REGISTER_FAILURE_CODE = 1601;
+    static const uint16_t KEY_EXCHANGE_SUCCESS_CODE = 1602;
+    static const uint16_t FILE_RECEIVED_SUCCESS_CODE = 1603;
+    static const uint16_t GENERAL_SUCCESS_CODE = 1604;
+    static const uint16_t RECONNECT_SUCCESS_CODE = 1605;
+    static const uint16_t KEY_EXCHANGE_FAILURE_CODE = 1606;
+    static const uint16_t CRC_OK_CODE = 900;
+    static const uint16_t CRC_MISMATCH_CODE = 902;
+    static const size_t MAX_RETRY_ATTEMPTS = 3;
+
 private:
     const size_t CLIENT_ID_SIZE = 16;
     const size_t VERSION = 1;

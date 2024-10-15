@@ -2,316 +2,221 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include "cksum_new.h"
-#include "FileManager.h"
+#include <stdexcept>
+#include <algorithm>
+#include <filesystem>
 
-Client::Client(const std::string& server_ip, const std::string& server_port, const std::string& username, const std::string& filePath, FileManager& fileManager)
-	: m_network_manager(server_ip, server_port) {
-	m_client_id = "";
-	m_name = username;
-	m_filePath = filePath;
-	m_fileManager = fileManager;
-}
+Client::Client(const std::string& server_ip, const std::string& server_port, const std::string& username, const std::string& file_path, FileManager& file_manager)
+    : name_(username),
+      file_path_(file_path),
+      protocol_(),
+      network_manager_(server_ip, server_port),
+      crypto_manager_(),
+      file_manager_(file_manager){}
 
-Client::~Client() {
+Client::~Client()
+{
 }
 
 void Client::run() {
-	try {
-		m_network_manager.connect();
+    try {
+        network_manager_.connect();
 
-		bool isClientRegistered = InitClientData();
-		if (!isClientRegistered)
-		{
-			register_to_server(0);
-			std::cout << "You are now registered to the server" << std::endl;
-			perform_initial_key_exchange();
-			std::cout << "Initial key exchange completed" << std::endl;
-		}
-		else
-		{
-			perform_reconnect();
-			std::cout << "Reconnect completed" << std::endl;
-		}
+        if (!init_client_data()) {
+            register_to_server();
+            std::cout << "You are now registered to the server" << std::endl;
+            perform_initial_key_exchange();
+            std::cout << "Initial key exchange completed" << std::endl;
+        } else {
+            perform_reconnect();
+            std::cout << "Reconnect completed" << std::endl;
+        }
 
-
-		send_file(m_filePath, 0);
-		std::cout << "File sent successfully" << std::endl;
-		if(!getApprovedMassage())
-			throw std::runtime_error("Server responded with an unknown error code");
-	}
-	catch (const std::exception& e)
-	{
-		//close the programe and print the error
-		std::cerr << e.what() << std::endl;
-		m_network_manager.disconnect();
-		exit(1);
-	}
-	m_network_manager.disconnect();
-}
-std::string bytesToUUIDString(const std::vector<uint8_t>& bytes)
-{
-	if (bytes.size() != 16) {
-		throw std::invalid_argument("UUID must be 16 bytes");
-	}
-
-	std::stringstream ss;
-	ss << std::hex << std::setfill('0');
-	for (size_t i = 0; i < bytes.size(); ++i) {
-		ss << std::setw(2) << static_cast<int>(bytes[i]);
-		if (i == 3 || i == 5 || i == 7 || i == 9) {
-			ss << "-";
-		}
-	}
-	return ss.str();
-}
-bool Client::InitClientData()
-{
-	if (m_fileManager.readMeInfo()) //TODO: test if the username missmatch
-	{
-		m_client_id = bytesToUUIDString(m_fileManager.getClientId());
-		m_crypto_manager.setPrivateKey(m_fileManager.getKey());
-		return true;
-	}
-	return false;
+        send_file();
+        std::cout << "File sent successfully" << std::endl;
+        
+        if (!get_approved_message()) {
+            throw std::runtime_error("Server responded with an unknown error code");
+        }
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        network_manager_.disconnect();
+        exit(1);
+    }
+    network_manager_.disconnect();
 }
 
-
-
-std::vector<uint8_t> stringToBinary(const std::string& input, size_t desiredSize)
-{
-	std::vector<uint8_t> binaryData(desiredSize, 0);  // Initialize with zeros
-
-	size_t inputSize = std::min(input.length(), desiredSize);
-
-	for (size_t i = 0; i < inputSize; ++i) {
-		binaryData[i] = static_cast<uint8_t>(input[i]);
-	}
-
-	return binaryData;
+bool Client::init_client_data() {
+    if (file_manager_.readMeInfo()) {
+        client_id_ = bytes_to_uuid_string(file_manager_.getClientId());
+        crypto_manager_.setPrivateKey(file_manager_.getKey());
+        return true;
+    }
+    return false;
 }
 
-std::vector<uint8_t> uuidStringToBinary(const std::string& uuid) {
-	std::vector<uint8_t> binaryData;
-	binaryData.reserve(16);
+void Client::register_to_server() {
+    for (int attempt = 0; attempt < Protocol::MAX_RETRY_ATTEMPTS; ++attempt) {
+        std::vector<uint8_t> request = protocol_.create_register_request(string_to_binary(client_id_, Protocol::UUID_SIZE), name_);
+        network_manager_.sendRequest(request);
 
-	// Remove hyphens from the UUID string
-	std::string cleanUuid = uuid;
-	cleanUuid.erase(std::remove(cleanUuid.begin(), cleanUuid.end(), '-'), cleanUuid.end());
+        auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
 
-	// Convert hex string to bytes
-	for (size_t i = 0; i < 32; i += 2) {
-		std::string byteString = cleanUuid.substr(i, 2);
-		uint8_t byte = static_cast<uint8_t>(std::stoi(byteString, nullptr, 16));
-		binaryData.push_back(byte);
-	}
+        if (code == Protocol::REGISTER_SUCCESS_CODE && !payload.empty()) {
+            client_id_ = bytes_to_uuid_string(payload);
+            file_manager_.setClientId(payload);
+            return;
+        }
 
-	return binaryData;
-}
+        std::cout << protocol_.SERVER_RESPOND_ERROR << std::endl;
+    }
 
-void Client::register_to_server(u_int timeout)
-{
-	std::vector<uint8_t> request = m_protocol.create_register_request(stringToBinary(m_client_id, 16), m_name);
-	m_network_manager.sendRequest(request);
-
-	std::vector<uint8_t> response = m_network_manager.receiveResponse();
-	uint8_t version;
-	uint16_t code;
-	std::vector<uint8_t> payload;
-	std::tie(version, code, payload) = m_protocol.parse_response(response);
-
-	if (code == 1600 && !payload.empty())
-	{
-		m_client_id = bytesToUUIDString(payload);
-		m_fileManager.setClientId(payload);
-		return;
-	}
-	//If response return with error, try to register again
-	if (timeout < 3)
-	{
-		std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
-		Client::register_to_server(++timeout);
-		return;
-	}
-	
-	//If response return with error, more then 3 times throw an exception
-	std::string error = m_protocol.FATAL_REGISTER_ERROR;
-	if (code == 1601)
-		error += " Server responded with an error code : " + std::to_string(code);
-	else
-		error += " Server responded with an unknown error code : " + std::to_string(code);
-	
-	throw std::runtime_error(error);
+    handle_server_error(Protocol::REGISTER_FAILURE_CODE, "Registration");
 }
 
 void Client::perform_initial_key_exchange() {
-	m_crypto_manager.generateRSAKeys();
-	std::vector<uint8_t> public_key = m_crypto_manager.getPublicKey();
-	std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
-	nameBin.insert(nameBin.end(), public_key.begin(), public_key.end());
-	std::vector<uint8_t> request = m_protocol.create_public_key_request(uuidStringToBinary(m_client_id), nameBin);
+    crypto_manager_.generateRSAKeys();
+    std::vector<uint8_t> public_key = crypto_manager_.getPublicKey();
+    std::vector<uint8_t> name_bin = string_to_binary(name_, Protocol::MAX_NAME_LENGTH);
+    name_bin.insert(name_bin.end(), public_key.begin(), public_key.end());
+    std::vector<uint8_t> request = protocol_.create_public_key_request(get_client_id_binary(), name_bin);
 
-	m_fileManager.setKey(m_crypto_manager.getStringPrivateKey());
-	m_fileManager.writeMeInfo();
-	
-	receive_and_process_aes_key(0, request);
+    file_manager_.setKey(crypto_manager_.getStringPrivateKey());
+    file_manager_.writeMeInfo();
+    
+    receive_and_process_aes_key(request);
 }
 
 void Client::perform_reconnect() {
-	std::vector<uint8_t> nameBin = stringToBinary(m_name, 255);
-	std::vector<uint8_t> request = m_protocol.create_reconnect_request(uuidStringToBinary(m_client_id), nameBin);
-	
-	receive_and_process_aes_key(0, request);
+    std::vector<uint8_t> name_bin = string_to_binary(name_, Protocol::MAX_NAME_LENGTH);
+    std::vector<uint8_t> request = protocol_.create_reconnect_request(get_client_id_binary(), name_bin);
+    
+    receive_and_process_aes_key(request);
 }
 
-void Client::receive_and_process_aes_key(u_int timeout, std::vector<uint8_t> request) 
-{
-	m_network_manager.sendRequest(request);
+void Client::receive_and_process_aes_key(const std::vector<uint8_t>& request) {
+    for (int attempt = 0; attempt < Protocol::MAX_RETRY_ATTEMPTS; ++attempt) {
+        network_manager_.sendRequest(request);
 
-	std::vector<uint8_t> response = m_network_manager.receiveResponse();
-	uint8_t version;
-	uint16_t code;
-	std::vector<uint8_t> payload;
-	std::tie(version, code, payload) = m_protocol.parse_response(response);
-	std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + 16);
-	std::string received_client_id = bytesToUUIDString(client_id_bytes);
+        auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
+        std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + Protocol::UUID_SIZE);
+        std::string received_client_id = bytes_to_uuid_string(client_id_bytes);
 
-	if ((code == 1602 || code == 1605) && received_client_id == m_client_id) 
-	{
-		// Extract encrypted AES key (remaining bytes)
-		std::vector<uint8_t> encrypted_aes_key(payload.begin() + 16, payload.end());
+        if ((code == Protocol::KEY_EXCHANGE_SUCCESS_CODE || code == Protocol::RECONNECT_SUCCESS_CODE) && received_client_id == client_id_) {
+            std::vector<uint8_t> encrypted_aes_key(payload.begin() + Protocol::UUID_SIZE, payload.end());
+            std::string aes_key = crypto_manager_.decryptRSA(encrypted_aes_key);
+            crypto_manager_.setAESKey(aes_key);
+            return;
+        }
 
-		// Decrypt the AES key
-		std::string aes_key = m_crypto_manager.decryptRSA(encrypted_aes_key);
-		m_crypto_manager.setAESKey(aes_key);
-		return;
-	}
-	// If response return with error, try to receive AES key again
-	if (timeout < 3)
-	{
-		std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
-		Client::receive_and_process_aes_key(++timeout, request);
-		return;
-	}
-	//If response return with error, more then 3 times throw an exception
-	std::string error = m_protocol.FATAL_KEY_EXCHANGE_ERROR;
-	if (code == 1606)
-		error += " Server responded with an error code :" + std::to_string(code) + " reconnect denied, please register again";
-	else
-		error += " Server responded with an unknown error code : " + std::to_string(code);
+        std::cout << protocol_.SERVER_RESPOND_ERROR << std::endl;
+    }
 
-	throw std::runtime_error(error);
+    handle_server_error(Protocol::KEY_EXCHANGE_FAILURE_CODE, "Key exchange");
 }
 
-void Client::handle_server_response(std::string filePath, u_int timeout) {
-	std::vector<uint8_t> response = m_network_manager.receiveResponse();
-	uint8_t version;
-	uint16_t code;
-	std::vector<uint8_t> payload;
-	std::tie(version, code, payload) = m_protocol.parse_response(response);
+void Client::send_file() {
+    std::ifstream file(file_path_, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Failed to open file: " + file_path_);
+    }
 
-	switch (code) {
-	case 1603: // CRC
-		handle_crc_response(filePath, payload);
-		break;
-	
-	//TODO: this part should not be here,
-	case 1604: // File transfer approved
-		std::cout << "File transfer approved" << std::endl;
-		break;
-	case 1605: // Reconnect approved
-		std::cout << "Reconnect approved" << std::endl;
-		break;
-	case 1606: // Reconnect denied
-		std::cerr << "Reconnect denied" << std::endl;
-		break;
-	default:
-		std::cerr << "Unknown response code: " << code << std::endl;
-	}
+    std::string filename = std::filesystem::path(file_path_).filename().string();
+    std::vector<uint8_t> file_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    file.close();
+
+    std::vector<uint8_t> encrypted_content = crypto_manager_.encryptAES(file_content);
+    size_t total_packets = encrypted_content.size() / protocol_.MAX_FILE_PACKET_SIZE + 1;
+    std::vector<uint8_t> client_id_binary = get_client_id_binary();
+
+    for (size_t i = 1; i <= total_packets; i++) {
+        std::vector<uint8_t> request = protocol_.create_file_request(client_id_binary, filename, file_content.size(), encrypted_content, i);
+
+        i == 1 ? network_manager_.sendRequest(request) : network_manager_.sebdFilePacket(request, protocol_.FILE_PACKET_SIZE);
+    }
+
+    auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
+
+    if (code == Protocol::FILE_RECEIVED_SUCCESS_CODE) {
+        if (!handle_crc_response(payload)) {
+            std::vector<uint8_t> request = protocol_.create_crc_request(Protocol::CRC_MISMATCH_CODE, client_id_binary, filename);
+            network_manager_.sendRequest(request);
+            if (get_approved_message()) {
+                throw std::runtime_error(protocol_.FATAL_CRC_ERROR);
+            }
+        }
+        return;
+    }
+
+    handle_server_error(code, "File transfer");
 }
 
-void Client::send_file(const std::string& filePath, u_int timeout)
-{
-	std::ifstream file(filePath, std::ios::binary);
-	if (!file) {
-		std::cerr << "Failed to open file: " << filePath << std::endl;
-		return;
-	}
-	std::filesystem::path filePathsys = filePath;
-	std::string filename = filePathsys.filename().string();
-	std::vector<uint8_t> file_content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-	file.close();
+bool Client::handle_crc_response(const std::vector<uint8_t>& payload) {
+    std::string filename(payload.begin() + Protocol::UUID_SIZE + 4, payload.begin() + Protocol::MAX_NAME_LENGTH);
+    uint32_t server_crc = (payload[payload.size() - 4] << 24) | (payload[payload.size() - 3] << 16)
+        | (payload[payload.size() - 2] << 8) | payload[payload.size() - 1];
 
-	std::vector<uint8_t> encrypted_content = m_crypto_manager.encryptAES(file_content);
-	size_t totPackeg = encrypted_content.size() / m_protocol.MAX_FILE_PACKET_SIZE + 1;
-	std::vector<uint8_t> bit_client_id = uuidStringToBinary(m_client_id);
-	for (size_t i = 1; i <= totPackeg; i++)
-	{
-		std::vector<uint8_t> request = m_protocol.create_file_request(bit_client_id, filename, file_content.size(), encrypted_content, i);
-
-		i == 1
-			? m_network_manager.sendRequest(request)
-			: m_network_manager.sebdFilePacket(request, m_protocol.FILE_PACKET_SIZE);
-	}
-
-	std::vector<uint8_t> response = m_network_manager.receiveResponse();
-	uint8_t version;
-	uint16_t code;
-	std::vector<uint8_t> payload;
-	std::tie(version, code, payload) = m_protocol.parse_response(response);
-	bool isFileTransferApproved = false;
-	if (code == 1603)
-	{
-		isFileTransferApproved = handle_crc_response(filePath, payload);
-		if (!isFileTransferApproved)
-		{
-			if (timeout < 3)
-			{
-				std::cout << m_protocol.SERVER_RESPOND_ERROR << std::endl;
-				std::vector<uint8_t> request = m_protocol.create_crc_request(901, bit_client_id, filename);
-				m_network_manager.sendRequest(request);
-				Client::send_file(filePath, ++timeout);
-				return;
-			}
-
-			std::vector<uint8_t> request = m_protocol.create_crc_request(902, bit_client_id, filename);
-			m_network_manager.sendRequest(request);
-			if (getApprovedMassage())
-				throw std::runtime_error(m_protocol.FATAL_CRC_ERROR);
-		}
-		return;
-	}
-		
-	std::cerr << "Server responded with an unknown error code: " << code << std::endl;
-	throw std::runtime_error(m_protocol.SERVER_RESPOND_ERROR);
+    uint32_t current_crc = readfile(file_path_);
+    if (current_crc == server_crc) {
+        std::vector<uint8_t> request = protocol_.create_crc_request(Protocol::CRC_OK_CODE, get_client_id_binary(), filename);
+        network_manager_.sendRequest(request);
+        return true;
+    }
+    return false;
 }
-bool Client::getApprovedMassage()
-{
-	std::vector<uint8_t> response = m_network_manager.receiveResponse();
-	uint8_t version;
-	uint16_t code;
-	std::vector<uint8_t> payload;
-	std::tie(version, code, payload) = m_protocol.parse_response(response);
 
-	if (code == 1604)
-	{
-		std::cout << "Server send approved with code: " << std::to_string(code) << " will disconnect" << std::endl;
-		return true;
-	}
-	return false;
+std::vector<uint8_t> Client::get_client_id_binary() const {
+    return uuid_string_to_binary(client_id_);
 }
-bool Client::handle_crc_response(std::string filePath, const std::vector<uint8_t>& payload) {
-	std::string filename(payload.begin() + 20, payload.begin() + 255);
-	//extract the value from the last 4 bytes of the payload
-	int payloadSize = payload.size();
-	uint32_t crc = (payload[payloadSize - 4] << 24) | (payload[payloadSize - 3] << 16)
-		| (payload[payloadSize - 2] << 8) | payload[payloadSize - 1];
-	std::vector<uint8_t> bit_client_id = uuidStringToBinary(m_client_id);
-	uint32_t current_crc = readfile(filePath);
-	if (current_crc == crc) {
-		std::vector<uint8_t> request = m_protocol.create_crc_request(900, bit_client_id, filename);
-		m_network_manager.sendRequest(request);
-		return true;
-	}
-	return false;
+
+bool Client::get_approved_message() {
+    auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
+
+    if (code == Protocol::GENERAL_SUCCESS_CODE) {
+        std::cout << "Server sent approval with code: " << code << ". Will disconnect." << std::endl;
+        return true;
+    }
+    return false;
+}
+
+void Client::handle_server_error(uint16_t code, const std::string& context) {
+    std::string error = protocol_.FATAL_REGISTER_ERROR;
+    error += " Server responded with " + std::string(code == 1601 ? "an error" : "an unknown error") + " code: " + std::to_string(code);
+    error += " during " + context;
+    throw std::runtime_error(error);
+}
+
+std::string Client::bytes_to_uuid_string(const std::vector<uint8_t>& bytes) {
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (size_t i = 0; i < bytes.size(); ++i) {
+        ss << std::setw(2) << static_cast<int>(bytes[i]);
+        if (i == 3 || i == 5 || i == 7 || i == 9) {
+            ss << '-';
+        }
+    }
+    return ss.str();
+}
+
+std::vector<uint8_t> Client::string_to_binary(const std::string& input, size_t desired_size) {
+    std::vector<uint8_t> result(desired_size, 0);
+    std::copy(input.begin(), input.end(), result.begin());
+    return result;
+}
+
+std::vector<uint8_t> Client::uuid_string_to_binary(const std::string& uuid) {
+    std::string uuid_no_hyphens;
+    for (char c : uuid) {
+        if (c != '-') {
+            uuid_no_hyphens += c;
+        }
+    }
+
+    std::vector<uint8_t> binary;
+    for (size_t i = 0; i < uuid_no_hyphens.length(); i += 2) {
+        std::string byte = uuid_no_hyphens.substr(i, 2);
+        binary.push_back(static_cast<uint8_t>(std::stoi(byte, nullptr, 16)));
+    }
+
+    return binary;
 }
