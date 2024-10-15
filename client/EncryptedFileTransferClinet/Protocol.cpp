@@ -5,22 +5,22 @@
 #include <map>
 
 // Constants for message structure
-constexpr size_t CLIENT_ID_SIZE = 16;  // Adjust the value as needed
-constexpr size_t VERSION = 1;
-constexpr size_t CODE_SIZE = 2;
-constexpr size_t PAYLOAD_SIZE_SIZE = 4;
+constexpr size_t CLIENT_ID_SIZE = Protocol::CLIENT_ID_SIZE;
+constexpr uint8_t VERSION = Protocol::VERSION;
+constexpr size_t CODE_SIZE = Protocol::CODE_SIZE;
+constexpr size_t PAYLOAD_SIZE_SIZE = Protocol::PAYLOAD_SIZE_SIZE;
 
 
 
 // Define payload sizes for each request code
 const std::map<uint16_t, uint32_t> PAYLOAD_SIZES = {
-    {825, 255},   // Register
-    {826, 160 + 255},   // Send Public Key
-    {827, 255},   // Reconnect
-    {828, 1291},   // Send File
-    {900, 255},     // CRC OK
-    {901, 255},     // CRC Retry
-    {902, 255}      // CRC Fail
+    {Protocol::REGISTER_CODE, Protocol::MAX_NAME_LENGTH},
+    {Protocol::SEND_PUBLIC_KEY_CODE, Protocol::MAX_PUBLIC_KEY_SIZE + Protocol::MAX_NAME_LENGTH},
+    {Protocol::RECONNECT_CODE, Protocol::MAX_NAME_LENGTH},
+    {Protocol::SEND_FILE_CODE, Protocol::FILE_PACKET_SIZE},
+    {Protocol::CRC_OK_CODE, Protocol::MAX_NAME_LENGTH},
+    {Protocol::CRC_RETRY_CODE, Protocol::MAX_NAME_LENGTH},
+    {Protocol::CRC_FAIL_CODE, Protocol::MAX_NAME_LENGTH}
 };
 
 
@@ -51,7 +51,7 @@ void pushBytes(std::vector<uint8_t> &binVector, size_t valuToPush, const int byt
 	}
 }
 
-std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<uint8_t> client_id, uint8_t version, const std::vector<uint8_t>& payload) {
+std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<uint8_t>& client_id, uint8_t version, const std::vector<uint8_t>& payload) {
     std::vector<uint8_t> request;
 
     // Add client_id (16 bytes)
@@ -89,16 +89,16 @@ std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<u
     return request;
 }
 
-std::vector<uint8_t> Protocol::create_register_request(const std::vector<uint8_t> client_id, const std::string& name) {
+std::vector<uint8_t> Protocol::create_register_request(const std::vector<uint8_t>& client_id, const std::string& name) {
     std::vector<uint8_t> payload(name.begin(), name.end());
-    return create_request(825, client_id, 3, payload);
+    return create_request(REGISTER_CODE, client_id, VERSION, payload);
 }
 
-std::vector<uint8_t> Protocol::create_public_key_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& public_key) {
-    return create_request(826, client_id,3, public_key);
+std::vector<uint8_t> Protocol::create_public_key_request(const std::vector<uint8_t>& client_id, const std::vector<uint8_t>& public_key) {
+    return create_request(SEND_PUBLIC_KEY_CODE, client_id, VERSION, public_key);
 }
 //
-std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t> client_id, const std::string& filename,const size_t original_file_size, const std::vector<uint8_t>& file_content, const size_t packet_num) 
+std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t>& client_id, const std::string& filename,const size_t original_file_size, const std::vector<uint8_t>& file_content, const size_t packet_num) 
 {
     std::vector<uint8_t> payload;
     //add file_content size to payload in 4 bytes
@@ -129,17 +129,23 @@ std::vector<uint8_t> Protocol::create_file_request(const std::vector<uint8_t> cl
 		payload.insert(payload.end(), MAX_FILE_PACKET_SIZE - (end - start), 0);
 	}
     if (packet_num == 1)
-        return create_request(828, client_id,3, payload);
+        return create_request(SEND_FILE_CODE, client_id, VERSION, payload);
     
     return payload;
 }
 
-std::vector<uint8_t> Protocol::create_crc_request(const int code, const std::vector<uint8_t> client_id, const std::string& filename) {
+std::vector<uint8_t> Protocol::create_crc_request(uint16_t code, const std::vector<uint8_t>& client_id, const std::string& filename) {
     std::vector<uint8_t> payload(filename.begin(), filename.end());
-    return create_request(code, client_id, 3, payload);
+    // Pad the filename to MAX_NAME_LENGTH if necessary
+    if (payload.size() < MAX_NAME_LENGTH) {
+        payload.resize(MAX_NAME_LENGTH, 0);
+    }
+    return create_request(code, client_id, VERSION, payload);
 }
 
-std::vector<uint8_t> Protocol::create_reconnect_request(const std::vector<uint8_t> client_id, const std::vector<uint8_t>& name) {
-    return create_request(827, client_id, 3, name);
+std::vector<uint8_t> Protocol::create_reconnect_request(const std::vector<uint8_t>& client_id, const std::vector<uint8_t>& name) {
+    return create_request(RECONNECT_CODE, client_id, VERSION, name);
 }
+
+
 

@@ -56,8 +56,8 @@ bool Client::init_client_data() {
 }
 
 void Client::register_to_server() {
-    for (int attempt = 0; attempt < Protocol::MAX_RETRY_ATTEMPTS; ++attempt) {
-        std::vector<uint8_t> request = protocol_.create_register_request(string_to_binary(client_id_, Protocol::UUID_SIZE), name_);
+    for (size_t attempt = 0; attempt < Protocol::MAX_RETRY_ATTEMPTS; ++attempt) {
+        std::vector<uint8_t> request = protocol_.create_register_request(string_to_binary(client_id_, Protocol::CLIENT_ID_SIZE), name_);
         network_manager_.sendRequest(request);
 
         auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
@@ -95,15 +95,15 @@ void Client::perform_reconnect() {
 }
 
 void Client::receive_and_process_aes_key(const std::vector<uint8_t>& request) {
-    for (int attempt = 0; attempt < Protocol::MAX_RETRY_ATTEMPTS; ++attempt) {
+    for (size_t attempt = 0; attempt < Protocol::MAX_RETRY_ATTEMPTS; ++attempt) {
         network_manager_.sendRequest(request);
 
         auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
-        std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + Protocol::UUID_SIZE);
+        std::vector<uint8_t> client_id_bytes(payload.begin(), payload.begin() + Protocol::CLIENT_ID_SIZE);
         std::string received_client_id = bytes_to_uuid_string(client_id_bytes);
 
         if ((code == Protocol::KEY_EXCHANGE_SUCCESS_CODE || code == Protocol::RECONNECT_SUCCESS_CODE) && received_client_id == client_id_) {
-            std::vector<uint8_t> encrypted_aes_key(payload.begin() + Protocol::UUID_SIZE, payload.end());
+            std::vector<uint8_t> encrypted_aes_key(payload.begin() + Protocol::CLIENT_ID_SIZE, payload.end());
             std::string aes_key = crypto_manager_.decryptRSA(encrypted_aes_key);
             crypto_manager_.setAESKey(aes_key);
             return;
@@ -126,20 +126,20 @@ void Client::send_file() {
     file.close();
 
     std::vector<uint8_t> encrypted_content = crypto_manager_.encryptAES(file_content);
-    size_t total_packets = encrypted_content.size() / protocol_.MAX_FILE_PACKET_SIZE + 1;
+    size_t total_packets = encrypted_content.size() / Protocol::MAX_FILE_PACKET_SIZE + 1;
     std::vector<uint8_t> client_id_binary = get_client_id_binary();
 
     for (size_t i = 1; i <= total_packets; i++) {
         std::vector<uint8_t> request = protocol_.create_file_request(client_id_binary, filename, file_content.size(), encrypted_content, i);
 
-        i == 1 ? network_manager_.sendRequest(request) : network_manager_.sebdFilePacket(request, protocol_.FILE_PACKET_SIZE);
+        i == 1 ? network_manager_.sendRequest(request) : network_manager_.sendFilePacket(request, Protocol::FILE_PACKET_SIZE);
     }
 
     auto [version, code, payload] = protocol_.parse_response(network_manager_.receiveResponse());
 
     if (code == Protocol::FILE_RECEIVED_SUCCESS_CODE) {
         if (!handle_crc_response(payload)) {
-            std::vector<uint8_t> request = protocol_.create_crc_request(Protocol::CRC_MISMATCH_CODE, client_id_binary, filename);
+            std::vector<uint8_t> request = protocol_.create_crc_request(Protocol::CRC_RETRY_CODE, client_id_binary, filename);
             network_manager_.sendRequest(request);
             if (get_approved_message()) {
                 throw std::runtime_error(protocol_.FATAL_CRC_ERROR);
@@ -152,7 +152,7 @@ void Client::send_file() {
 }
 
 bool Client::handle_crc_response(const std::vector<uint8_t>& payload) {
-    std::string filename(payload.begin() + Protocol::UUID_SIZE + 4, payload.begin() + Protocol::MAX_NAME_LENGTH);
+    std::string filename(payload.begin() + Protocol::CLIENT_ID_SIZE + 4, payload.begin() + Protocol::MAX_NAME_LENGTH);
     uint32_t server_crc = (payload[payload.size() - 4] << 24) | (payload[payload.size() - 3] << 16)
         | (payload[payload.size() - 2] << 8) | payload[payload.size() - 1];
 
@@ -181,7 +181,7 @@ bool Client::get_approved_message() {
 
 void Client::handle_server_error(uint16_t code, const std::string& context) {
     std::string error = protocol_.FATAL_REGISTER_ERROR;
-    error += " Server responded with " + std::string(code == 1601 ? "an error" : "an unknown error") + " code: " + std::to_string(code);
+    error += " Server responded with " + std::string(code == Protocol::REGISTER_FAILURE_CODE ? "an error" : "an unknown error") + " code: " + std::to_string(code);
     error += " during " + context;
     throw std::runtime_error(error);
 }

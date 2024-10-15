@@ -17,7 +17,7 @@ public:
     std::vector<uint8_t> receiveDataBytes();
 
     void sendRequest(const std::vector<uint8_t>& request);
-    void sebdFilePacket(const std::vector<uint8_t>& request, const size_t packetSize);
+    void sendFilePacket(const std::vector<uint8_t>& request, const size_t packetSize);
     std::vector<uint8_t> receiveResponse();
 
 private:
