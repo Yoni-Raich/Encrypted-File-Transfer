@@ -170,6 +170,5 @@ bool FileManager::validateClientId(const std::string& clientId) {
 }
 
 bool FileManager::validateKey(const std::string& key) {
-	std::cout << "Key: " << key.size() << std::endl;
     return true;
 }

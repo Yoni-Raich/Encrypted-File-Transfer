@@ -85,12 +85,11 @@ class RequestHandler:
         for i in range(1, num_of_packets):
             data = client_socket.recv(packet_size)
             new_file_structure = self.request_structure.get_file_structure(data, i+1)
-            print(f"pack num:{i}")
             self.file_structure['encrypted_file_content'] += new_file_structure['encrypted_file_content']
 
         if len(self.file_structure['encrypted_file_content']) != self.file_structure['content_size']:
             print(f"File content size mismatch:\n Expected: {self.file_structure['content_size']}\n Received: {len(self.file_structure['encrypted_file_content'])}")
-            #return self.protocol.create_response(1607, client_id)
+            return self.protocol.create_response(1607, client_id)
 
         client = self.client_manager.get_client(client_id)
         if client:

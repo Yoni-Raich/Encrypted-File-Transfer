@@ -30,9 +30,7 @@ class RequestStructure:
         packet_size = len(encrypted_file_content)
         total_size = packet_size * total_packet
         padding_size = total_size - content_size    
-        print(packet_size)   
-        print(total_size) 
-        print(padding_size)
+        
         
         # Remove padding if it's the last packet
         if packet_number == total_packet:

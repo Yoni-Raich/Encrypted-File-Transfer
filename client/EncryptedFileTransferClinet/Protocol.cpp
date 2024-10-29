@@ -85,7 +85,6 @@ std::vector<uint8_t> Protocol::create_request(uint16_t code, const std::vector<u
     // Pad the payload to the specified size
     if (payload.size() < required_payload_size) 
     {
-		std::cout << "Padding payload with " << required_payload_size - payload.size() << " bytes" << std::endl;
         request.insert(request.end(), required_payload_size - payload.size(), 0);
     }
 
